@@ -1,4 +1,5 @@
 import { firebaseConfig, adminUid } from './firebase-config.js';
+import { cloudinaryWorkerUrl } from './cloudinary-config.js';
 
 // JCYG STORE — catálogo público y administración protegida por Firebase.
 const $ = (id) => document.getElementById(id);
@@ -30,7 +31,7 @@ const firebaseReady = Boolean(firebaseConfig.apiKey && !firebaseConfig.apiKey.st
 let products = firebaseReady ? [] : structuredClone(SAMPLE_PRODUCTS);
 let adminProducts = [], settings = {whatsapp:''};
 let likes = new Set(), chosenColors = new Map(), currentId = null, photoIndex = 0;
-let sdk = null, db = null, auth = null, storage = null, activeUser = null;
+let sdk = null, db = null, auth = null, activeUser = null;
 let unsubscribePublic = null, unsubscribeAdmin = null, unsubscribeSettings = null;
 let adminTab = 'products', editId = null, editorColors = [], editorPhotos = [], saving = false;
 let toastTimer = null;
@@ -163,7 +164,7 @@ function adminTabs(){return `<div class="admin-tabs">
 </div>`;}
 function renderAdmin() {
   if(!firebaseReady) {
-    adminContent.innerHTML = `<div class="login-wrap"><h2>Activar administración</h2><p>El catálogo de ejemplo ya está listo. Para iniciar sesión con una contraseña segura, primero conecta este proyecto a Firebase.</p><div class="admin-note">Consulta <strong>README.md</strong> y completa <strong>firebase-config.js</strong>. Habilita Email/Contraseña, Firestore y Storage, y publica las reglas suministradas.</div><button class="admin-secondary" data-admin-action="close">Volver a la tienda</button></div>`;return;
+    adminContent.innerHTML = `<div class="login-wrap"><h2>Activar administración</h2><p>El catálogo de ejemplo ya está listo. Para iniciar sesión con una contraseña segura, primero conecta este proyecto a Firebase.</p><div class="admin-note">Consulta <strong>README.md</strong> y completa <strong>firebase-config.js</strong>. Habilita Email/Contraseña y Firestore, y publica las reglas de Firestore. Para fotos desde este panel configura Cloudinary y el Worker gratuito; no necesitas Firebase Storage.</div><button class="admin-secondary" data-admin-action="close">Volver a la tienda</button></div>`;return;
   }
   if(!sdk) {adminContent.innerHTML = '<div class="login-wrap"><h2>Conectando con Firebase…</h2><p>Comprueba tu conexión a internet.</p></div>';return;}
   if(!activeUser) {
@@ -217,12 +218,17 @@ function renderEditor(){
       <div class="custom-color-row"><label class="admin-field">Color personalizado<input name="customColorName" maxlength="35" placeholder="Ej. Azul marino"></label>
         <label class="admin-field">Tono<input name="customColorHex" type="color" value="#2563eb"></label>
         <button class="admin-secondary" type="button" data-admin-action="custom-color">Añadir</button></div></div>
-    <div class="admin-panel"><h3>Fotografías del producto</h3><p class="muted">Puedes agregar hasta 10 fotografías. No es obligatorio añadirlas ahora: el producto se puede guardar con una imagen provisional y editarlo después.</p>
-      <label class="admin-field">Opción A · Seleccionar archivos JPG, PNG o WebP (Firebase Storage)
-      <input id="product-photos" type="file" accept="image/jpeg,image/png,image/webp" multiple><small>Elige fotografías de hasta 10 MB. Se subirán a Firebase Storage cuando guardes el producto.</small></label>
-      <div style="margin-top:14px"><label class="admin-field">Opción B · Agregar una imagen por enlace (sin Firebase Storage)
-      <input id="photo-url" type="text" inputmode="url" placeholder="assets/camioneta-roja.jpg o https://..."><small>Primero sube la foto a la carpeta assets de tu repositorio de GitHub. Escribe su ruta, por ejemplo assets/camioneta-roja.jpg, y pulsa Agregar foto por enlace.</small></label>
-      <button type="button" class="admin-secondary" data-admin-action="add-photo-url" style="margin-top:9px">＋ Agregar foto por enlace</button></div>
+    <div class="admin-panel"><h3>Fotografías del producto · Cloudinary</h3>
+      <p class="muted">Selecciona hasta 10 archivos PNG transparentes desde tu computadora o celular. Las fotos se guardarán en Cloudinary al pulsar <strong>Guardar producto</strong>, sin Firebase Storage.</p>
+      <label class="admin-field">Archivos PNG con fondo transparente (máximo 10 MB cada uno)
+        <input id="product-photos" type="file" accept="image/png,.png" multiple>
+        <small>Recomendado: PNG transparente, 1200–1600 px por lado. El sistema verifica el fondo y conserva la transparencia.</small></label>
+      <div class="admin-note" id="cloudinary-config-status">${cloudinaryWorkerUrl && !cloudinaryWorkerUrl.includes('REEMPLAZAR') ? 'Cloudinary listo para probar. Solo el administrador puede solicitar subidas firmadas.' : 'Pendiente: abre cloudinary-config.js y pega la dirección de tu Cloudflare Worker antes de subir fotos.'}</div>
+      <details style="margin-top:12px"><summary style="cursor:pointer">¿Ya tengo una foto en GitHub? Añadir por enlace</summary>
+        <label class="admin-field" style="margin-top:9px">Ruta de imagen en GitHub
+          <input id="photo-url" type="text" inputmode="url" spellcheck="false" autocomplete="off" placeholder="assets/camioneta-roja.jpg"></label>
+        <button type="button" class="admin-secondary" data-admin-action="add-photo-url" style="margin-top:9px">＋ Agregar por enlace</button>
+      </details>
       <div id="editor-photos" class="photo-list"></div></div>
     <div class="admin-panel"><h3>Características completas</h3><label class="admin-field">Una característica por línea, con formato Nombre: Detalle
       <textarea name="specs" rows="9" placeholder="Dimensiones: 120 × 74 × 80 cm\nMaterial: ABS de alta calidad\nMotor: 4 × 380 W\nBatería: 2 × 6V 4.5Ah\nIncluye: Control remoto, luces LED">${esc((p?.specs||[]).map(s=>`${s.label}: ${s.value}`).join('\n'))}</textarea>
@@ -241,7 +247,7 @@ function renderEditorPhotos(){
   wrap.innerHTML=editorPhotos.length ? editorPhotos.map((ph,i)=>`<div class="photo-tile"><img src="${esc(safeImage(ph.preview||ph.url))}" alt="Foto ${i+1}">
     <label for="photo-color-${i}">Foto ${i+1} · Asociar al color</label><select id="photo-color-${i}" data-photo-color="${esc(ph.id)}"><option value="">Sin color específico</option>
     ${editorColors.map(c=>`<option value="${esc(c.name)}" ${ph.color===c.name?'selected':''}>${esc(c.name)}</option>`).join('')}</select>
-    <button type="button" data-admin-action="remove-photo" data-photo-id="${esc(ph.id)}">✕ Quitar foto</button></div>`).join('') : '<p class="muted">Sin fotos todavía. Puedes guardar el producto con una imagen provisional y agregar fotografías después.</p>';
+    <button type="button" data-admin-action="remove-photo" data-photo-id="${esc(ph.id)}">✕ Quitar foto</button></div>`).join('') : '<p class="muted">Sin fotos todavía. Selecciona uno o varios archivos PNG para mostrarlos aquí; se subirán cuando guardes el producto.</p>';
 }
 function addColor(name,hex){
   name=String(name||'').trim().slice(0,35);if(!name)return notify('Escribe el nombre del color.');
@@ -266,23 +272,74 @@ async function saveSettings(form){
 function parseSpecs(value){return String(value).split(/\r?\n/).map(line=>line.trim()).filter(Boolean).map(line=>{
   const pos=line.indexOf(':');return pos<0?{label:'Detalle',value:line.slice(0,550)}:{label:line.slice(0,pos).trim().slice(0,90)||'Detalle',value:line.slice(pos+1).trim().slice(0,550)};
 }).slice(0,60);}
-async function toOptimizedImage(file){
-  if(!['image/jpeg','image/png','image/webp'].includes(file.type))throw Error('Solo se permiten imágenes JPG, PNG o WebP.');
-  if(file.size>10*1024*1024)throw Error('La imagen supera los 10 MB permitidos.');
-  const url=URL.createObjectURL(file);
-  try{
-    const img=new Image();img.src=url;await img.decode();
-    const ratio=Math.min(1,1600/Math.max(img.naturalWidth,img.naturalHeight));
-    const canvas=document.createElement('canvas');canvas.width=Math.max(1,Math.round(img.naturalWidth*ratio));canvas.height=Math.max(1,Math.round(img.naturalHeight*ratio));
-    canvas.getContext('2d').drawImage(img,0,0,canvas.width,canvas.height);
-    const webp=await new Promise((resolve,reject)=>canvas.toBlob(blob=>blob?resolve(blob):reject(Error('No se pudo preparar la imagen.')),'image/webp',.86));
-    return webp;
-  }finally{URL.revokeObjectURL(url);}
+// ===== Cloudinary: fotos PNG transparentes; el API Secret permanece EN EL WORKER. =====
+const CLOUDINARY_PREFIX = 'jcyg-store/products/';
+const isCloudinaryPublicId = v => typeof v === 'string' && v.startsWith(CLOUDINARY_PREFIX) && /^[a-z0-9_\-/]+$/i.test(v);
+function workerReady(){
+  return /^https:\/\/[^\s/]+(?:\/[^\s]*)?$/i.test(cloudinaryWorkerUrl) && !cloudinaryWorkerUrl.includes('REEMPLAZAR');
 }
-async function cleanupPaths(paths){
-  for(const path of paths){if(path?.startsWith('product-images/')){
-    try{await sdk.deleteObject(sdk.ref(storage,path));}catch(e){console.warn('No se pudo eliminar foto anterior:',e.code||e);}
-  }}
+async function makePNG(file) {
+  if(file.type !== 'image/png' || !/\.png$/i.test(file.name)) throw Error('Solo se aceptan archivos PNG.');
+  if(file.size > 10*1024*1024) throw Error('El PNG supera 10 MB. Elige uno más ligero.');
+  const local = URL.createObjectURL(file);
+  try {
+    const img = new Image(); img.src = local; await img.decode();
+    if(img.naturalWidth > 6000 || img.naturalHeight > 6000) throw Error('Imagen demasiado grande. Reduce su tamaño.');
+    // Comprueba transparencia REAL, no solo la extensión .png.
+    const proof = document.createElement('canvas');
+    const scale=Math.min(1,96/Math.max(img.naturalWidth,img.naturalHeight));
+    proof.width=Math.max(1,Math.round(img.naturalWidth*scale));proof.height=Math.max(1,Math.round(img.naturalHeight*scale));
+    const ctx=proof.getContext('2d',{willReadFrequently:true}); ctx.drawImage(img,0,0,proof.width,proof.height);
+    const pixels=ctx.getImageData(0,0,proof.width,proof.height).data;
+    let alpha=false;
+    for(let i=3;i<pixels.length;i+=4){if(pixels[i]<245){alpha=true;break;}}
+    if(!alpha) throw Error('Esta imagen no tiene transparencia. Primero quita el fondo y guárdala como PNG transparente.');
+    if(Math.max(img.naturalWidth,img.naturalHeight)<=1600) return file;
+    const ratio=1600/Math.max(img.naturalWidth,img.naturalHeight);
+    const canvas=document.createElement('canvas');
+    canvas.width=Math.max(1,Math.round(img.naturalWidth*ratio));canvas.height=Math.max(1,Math.round(img.naturalHeight*ratio));
+    canvas.getContext('2d').drawImage(img,0,0,canvas.width,canvas.height);
+    return await new Promise((ok,fail)=>canvas.toBlob(blob=>blob?ok(blob):fail(Error('No se pudo optimizar el PNG.')),'image/png'));
+  } finally {URL.revokeObjectURL(local);}
+}
+async function authorizeCloudinary(endpoint,body){
+  if(!workerReady()) throw Error('Falta configurar cloudinary-config.js con la URL del Worker.');
+  if(!isAdmin()) throw Error('Debes iniciar sesión como administrador.');
+  const token=await activeUser.getIdToken();
+  const controller=new AbortController();const timeout=setTimeout(()=>controller.abort(),18000);
+  try {
+    const response=await fetch(cloudinaryWorkerUrl.replace(/\/$/,'')+endpoint,{
+      method:'POST',headers:{'Authorization':`Bearer ${token}`,'Content-Type':'application/json'},
+      body:JSON.stringify(body||{}),signal:controller.signal
+    });
+    let data={};try{data=await response.json();}catch{}
+    if(!response.ok) throw Error(data.error||`Servidor de subidas: HTTP ${response.status}`);
+    return data;
+  }catch(e){if(e.name==='AbortError')throw Error('El servidor de subidas tardó demasiado. Revisa el Worker.');throw e;}
+  finally{clearTimeout(timeout);}
+}
+function cloudinaryUploadPNG(blob,signed,onProgress){
+  return new Promise((resolve,reject)=>{
+    const xhr=new XMLHttpRequest();
+    xhr.open('POST',`https://api.cloudinary.com/v1_1/${encodeURIComponent(signed.cloud_name)}/image/upload`);
+    xhr.timeout=90000;
+    xhr.upload.onprogress = event=> {if(event.lengthComputable)onProgress(Math.round(100*event.loaded/event.total));};
+    xhr.onerror=()=>reject(Error('No se pudo conectar a Cloudinary. Comprueba la conexión.'));
+    xhr.ontimeout=()=>reject(Error('Cloudinary tardó demasiado. Intenta otra vez.'));
+    xhr.onload=()=>{
+      let result={};try{result=JSON.parse(xhr.responseText);}catch{}
+      if(xhr.status>=200 && xhr.status<300 && result.secure_url && isCloudinaryPublicId(result.public_id) && result.format==='png') resolve(result);
+      else reject(Error(result?.error?.message||'Cloudinary rechazó el PNG. Revisa la configuración.'));
+    };
+    const form=new FormData();form.append('file',blob,'producto.png');
+    for(const [key,value] of Object.entries(signed.params))form.append(key,String(value));
+    form.append('api_key',signed.api_key);form.append('signature',signed.signature);
+    xhr.send(form);
+  });
+}
+async function removeCloudinaryPhoto(path){
+  if(!isCloudinaryPublicId(path)||!workerReady())return;
+  try{await authorizeCloudinary('/delete',{public_id:path});}catch(e){console.warn('Foto retirada del catálogo; borrado remoto pendiente:',e.message);}
 }
 async function saveProduct(form){
   if(saving)return;
@@ -293,51 +350,51 @@ async function saveProduct(form){
   if(oldPrice<0 || !Number.isFinite(oldPrice)){status.textContent='El precio anterior no es válido.';return;}
   if(oldPrice>0 && oldPrice<=price){status.textContent='El precio anterior debe ser superior al actual para indicar descuento, o déjalo en blanco.';return;}
   if(editorPhotos.length>10){status.textContent='Puedes agregar como máximo 10 fotografías por producto.';return;}
+  if(editorPhotos.some(pic => !( /^https:\/\//i.test(pic.url) || /^assets\/[\w.-]+\.(?:jpg|jpeg|png|webp|svg)$/i.test(pic.url)))) {
+    status.textContent='Hay una ruta de imagen no válida. Usa assets/nombre.jpg o una URL HTTPS.';
+    return;
+  }
+  if(editorPhotos.some(pic=>pic.file) && !workerReady()){
+    status.textContent='Debes configurar la URL del Worker en cloudinary-config.js para subir PNG.';return;
+  }
   saving=true;const button=$('save-product');button.disabled=true;
-  const productRef=editId ? sdk.doc(db,'products',editId) : sdk.doc(sdk.collection(db,'products'));
   const uploadedPaths=[];
-  try {
+  try{
+    const productRef=editId ? sdk.doc(db,'products',editId) : sdk.doc(sdk.collection(db,'products'));
     const photos=[];
     for(let i=0;i<editorPhotos.length;i++){
       const pic=editorPhotos[i];
       if(pic.file){
-        status.textContent=`Preparando y subiendo foto ${i+1} de ${editorPhotos.length}…`;
-        const blob=await toOptimizedImage(pic.file);
-        const path=`product-images/${productRef.id}/${crypto.randomUUID()}.webp`;
-        const loc=sdk.ref(storage,path);
-        await sdk.uploadBytes(loc,blob,{contentType:'image/webp'});
-        uploadedPaths.push(path);
-        const url=await sdk.getDownloadURL(loc);
-        photos.push({url,path,color:pic.color||''});
-      }else photos.push({url:pic.url,path:pic.path||'',color:pic.color||''});
+        status.textContent=`Validando PNG ${i+1} de ${editorPhotos.length}…`;
+        const png=await makePNG(pic.file);
+        status.textContent=`Autorizando foto ${i+1} de ${editorPhotos.length}…`;
+        const signed=await authorizeCloudinary('/sign');
+        status.textContent=`Subiendo foto ${i+1}/${editorPhotos.length} · 0%`;
+        const uploaded=await cloudinaryUploadPNG(png,signed,pct=>{status.textContent=`Subiendo foto ${i+1}/${editorPhotos.length} · ${pct}%`;});
+        uploadedPaths.push(uploaded.public_id);
+        photos.push({url:uploaded.secure_url,path:uploaded.public_id,color:pic.color||''});
+      } else photos.push({url:pic.url,path:pic.path||'',color:pic.color||''});
     }
-    status.textContent='Guardando información del producto…';
+    status.textContent='Guardando producto en Firebase Firestore…';
     const payload={name,desc,price,oldPrice,stock,published:form.elements.published.value==='true',
       colors:editorColors.map(c=>({...c})),photos,specs:parseSpecs(form.elements.specs.value),updatedAt:sdk.serverTimestamp()};
     await sdk.setDoc(productRef,payload,{merge:true});
-    const removed=(current?.photos||[]).map(p=>p.path).filter(path=>path && !photos.some(p=>p.path===path));
-    await cleanupPaths(removed);
+    const removed=(current?.photos||[]).map(p=>p.path).filter(path=>isCloudinaryPublicId(path)&&!photos.some(p=>p.path===path));
     notify(current?'Producto actualizado.':'Producto agregado.');returnToProductsAfterSave();
-  }catch(e){await cleanupPaths(uploadedPaths);
-    const help={
-      'storage/unauthorized':'Revisa el UID del administrador en las reglas de Storage y vuelve a publicarlas.',
-      'storage/unauthenticated':'La sesión del administrador venció. Sal y vuelve a ingresar.',
-      'storage/bucket-not-found':'Revisa que storageBucket sea exactamente el bucket que aparece en Firebase Storage.',
-      'storage/no-default-bucket':'Falta configurar el valor storageBucket en firebase-config.js.',
-      'storage/quota-exceeded':'Revisa si Storage está habilitado y si Firebase solicita el plan Blaze.',
-      'storage/project-not-found':'Revisa el projectId de firebase-config.js.',
-      'storage/unknown':'Revisa la activación de Storage, la facturación y la conexión a internet.',
-      'storage/retry-limit-exceeded':'Se agotó el tiempo de subida. Prueba otra vez con una fotografía más pequeña.'
-    }[e.code]||'';
-    status.textContent=`Error al guardar: ${e.code||e.message}. ${help} Si no puedes subir archivos ahora, quita la foto seleccionada y agrega una foto por enlace de GitHub, o guarda el producto sin fotos.`;
-    notify('No se pudo guardar el producto. Revisa el mensaje debajo del formulario.');}
-  finally{saving=false;const btn=$('save-product');if(btn)btn.disabled=false;}
+    for(const path of removed)await removeCloudinaryPhoto(path);
+  }catch(e){
+    console.error('JCYG STORE: no se pudo guardar producto:',e);
+    status.textContent=`No se pudo guardar: ${e.message||e.code}. Revisa la configuración y vuelve a intentar.`;
+    notify('No se pudo guardar el producto. Revisa el mensaje del formulario.');
+    // Si Firestore falla tras subir fotos, las fotos recién subidas se retiran para no gastar espacio.
+    for(const path of uploadedPaths)await removeCloudinaryPhoto(path);
+  }finally{saving=false;const btn=$('save-product');if(btn)btn.disabled=false;}
 }
 function returnToProductsAfterSave(){clearPhotoPreviews();editorPhotos=[];editorColors=[];editId=null;adminTab='products';renderAdmin();}
 async function deleteProduct(id){
   const p=adminProducts.find(x=>x.id===id);if(!p)return;
   if(!confirm(`¿Eliminar definitivamente «${p.name}» del catálogo?`))return;
-  try {await sdk.deleteDoc(sdk.doc(db,'products',id));await cleanupPaths(p.photos.map(ph=>ph.path));notify('Producto eliminado.');}
+  try {await sdk.deleteDoc(sdk.doc(db,'products',id));notify('Producto eliminado.');for(const ph of p.photos) await removeCloudinaryPhoto(ph.path);}
   catch(e){notify(`Error al eliminar: ${e.code||e.message}`);}
 }
 async function importSamples(){
@@ -358,16 +415,18 @@ adminContent.addEventListener('submit', async e=>{
   if(e.target.id==='editor-form')await saveProduct(e.target);
 });
 adminContent.addEventListener('change',e=>{
+  if(e.target.id==='product-photos'){
+    const input=e.target;const files=[...input.files];input.value='';
+    if(files.length+editorPhotos.length>10){notify('Máximo 10 fotos por producto.');return;}
+    if(files.some(file=>file.type!=='image/png'||!/\.png$/i.test(file.name)||file.size>10*1024*1024)){
+      notify('Selecciona únicamente archivos .png de máximo 10 MB.');return;
+    }
+    files.forEach(file=>editorPhotos.push({id:crypto.randomUUID(),url:'',path:'',color:'',file,preview:URL.createObjectURL(file)}));
+    renderEditorPhotos();
+    notify(`${files.length} foto(s) listas. Asigna sus colores y pulsa Guardar producto.`);
+  }
   if(e.target.matches('[data-photo-color]')){
     const ph=editorPhotos.find(p=>p.id===e.target.dataset.photoColor);if(ph)ph.color=e.target.value;
-  }
-  if(e.target.id==='product-photos'){
-    const files=[...e.target.files];e.target.value='';
-    if(files.length+editorPhotos.length>10){notify('Puedes cargar como máximo 10 fotos por producto.');return;}
-    if(files.some(f=>!['image/jpeg','image/png','image/webp'].includes(f.type)||f.size>10*1024*1024)){
-      notify('Usa JPG, PNG o WebP, hasta 10 MB por archivo.');return;
-    }
-    files.forEach(f=>editorPhotos.push({id:crypto.randomUUID(),url:'',path:'',color:'',file:f,preview:URL.createObjectURL(f)}));renderEditorPhotos();
   }
 });
 adminContent.addEventListener('click', async e=>{
@@ -395,12 +454,24 @@ adminContent.addEventListener('click', async e=>{
   }
   if(act==='add-photo-url'){
     const input=$('photo-url');const url=String(input?.value||'').trim();
-    if(editorPhotos.length>=10){notify('Puedes cargar como máximo 10 fotos por producto.');return;}
-    if(!(/^https:\/\//i.test(url)||/^assets\/[\w.-]+\.(?:jpg|jpeg|png|webp)$/i.test(url))){
-      notify('Escribe una dirección HTTPS o una ruta como assets/camioneta-roja.jpg.');return;
+    if(editorPhotos.length>=10){notify('Puedes agregar como máximo 10 fotos por producto.');return;}
+    if(!(/^https:\/\//i.test(url)||/^assets\/[\w.-]+\.(?:jpg|jpeg|png|webp|svg)$/i.test(url))){
+      notify('Usa una ruta como assets/camioneta-roja.jpg, sin espacios ni tildes.');return;
     }
-    editorPhotos.push({id:crypto.randomUUID(),url,path:'',color:'',file:null,preview:url});
-    input.value='';renderEditorPhotos();notify('Foto por enlace agregada. Puedes asociarla a un color.');return;
+    b.disabled=true;const original=b.textContent;b.textContent='Comprobando imagen…';
+    try{
+      await new Promise((resolve,reject)=>{
+        const img=new Image();let settled=false;
+        const timer=setTimeout(()=>{if(!settled){settled=true;reject(new Error('Tiempo agotado'));}},12000);
+        img.onload=()=>{if(!settled){settled=true;clearTimeout(timer);resolve();}};
+        img.onerror=()=>{if(!settled){settled=true;clearTimeout(timer);reject(new Error('Imagen no encontrada'));}};
+        img.src=url;
+      });
+      editorPhotos.push({id:crypto.randomUUID(),url,path:'',color:'',file:null,preview:url});
+      input.value='';renderEditorPhotos();notify('Fotografía agregada. Asigna su color si corresponde.');
+    }catch(e){notify('No se pudo abrir la foto. Revisa el nombre en assets y espera a que GitHub Pages publique el archivo.');}
+    finally{b.disabled=false;b.textContent=original;}
+    return;
   }
   if(act==='remove-photo'){
     const index=editorPhotos.findIndex(ph=>ph.id===b.dataset.photoId);if(index>=0){
@@ -412,15 +483,14 @@ adminContent.addEventListener('click', async e=>{
 async function initFirebase(){
   if(!firebaseReady)return;
   try{
-    const [app,firestore,storageMod,authMod] = await Promise.all([
+    const [app,firestore,authMod] = await Promise.all([
       import('https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js'),
       import('https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js'),
-      import('https://www.gstatic.com/firebasejs/11.10.0/firebase-storage.js'),
       import('https://www.gstatic.com/firebasejs/11.10.0/firebase-auth.js')
     ]);
-    sdk={...firestore,...storageMod,...authMod};
+    sdk={...firestore,...authMod};
     const firebaseApp=app.initializeApp(firebaseConfig);
-    db=firestore.getFirestore(firebaseApp);storage=storageMod.getStorage(firebaseApp);auth=authMod.getAuth(firebaseApp);
+    db=firestore.getFirestore(firebaseApp);auth=authMod.getAuth(firebaseApp);
     unsubscribePublic=firestore.onSnapshot(firestore.query(firestore.collection(db,'products'),firestore.where('published','==',true)),
       snap=>{products=snap.docs.map(d=>normalize({id:d.id,...d.data()})).sort((a,b)=>a.name.localeCompare(b.name,'es'));renderFeed();},
       err=>{console.error('Firestore productos:',err);notify('No se pudo cargar el catálogo. Revisa Firestore y sus reglas.');});
