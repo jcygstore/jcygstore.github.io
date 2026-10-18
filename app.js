@@ -217,8 +217,12 @@ function renderEditor(){
       <div class="custom-color-row"><label class="admin-field">Color personalizado<input name="customColorName" maxlength="35" placeholder="Ej. Azul marino"></label>
         <label class="admin-field">Tono<input name="customColorHex" type="color" value="#2563eb"></label>
         <button class="admin-secondary" type="button" data-admin-action="custom-color">Añadir</button></div></div>
-    <div class="admin-panel"><h3>Fotografías del producto</h3><label class="admin-field">Seleccionar imágenes (máximo 10 en total)
-      <input id="product-photos" type="file" accept="image/jpeg,image/png,image/webp" multiple><small>Puedes subir varias fotografías y asignarles un color. Las imágenes se optimizan antes de subir a Firebase Storage.</small></label>
+    <div class="admin-panel"><h3>Fotografías del producto</h3><p class="muted">Puedes agregar hasta 10 fotografías. No es obligatorio añadirlas ahora: el producto se puede guardar con una imagen provisional y editarlo después.</p>
+      <label class="admin-field">Opción A · Seleccionar archivos JPG, PNG o WebP (Firebase Storage)
+      <input id="product-photos" type="file" accept="image/jpeg,image/png,image/webp" multiple><small>Elige fotografías de hasta 10 MB. Se subirán a Firebase Storage cuando guardes el producto.</small></label>
+      <div style="margin-top:14px"><label class="admin-field">Opción B · Agregar una imagen por enlace (sin Firebase Storage)
+      <input id="photo-url" type="text" inputmode="url" placeholder="assets/camioneta-roja.jpg o https://..."><small>Primero sube la foto a la carpeta assets de tu repositorio de GitHub. Escribe su ruta, por ejemplo assets/camioneta-roja.jpg, y pulsa Agregar foto por enlace.</small></label>
+      <button type="button" class="admin-secondary" data-admin-action="add-photo-url" style="margin-top:9px">＋ Agregar foto por enlace</button></div>
       <div id="editor-photos" class="photo-list"></div></div>
     <div class="admin-panel"><h3>Características completas</h3><label class="admin-field">Una característica por línea, con formato Nombre: Detalle
       <textarea name="specs" rows="9" placeholder="Dimensiones: 120 × 74 × 80 cm\nMaterial: ABS de alta calidad\nMotor: 4 × 380 W\nBatería: 2 × 6V 4.5Ah\nIncluye: Control remoto, luces LED">${esc((p?.specs||[]).map(s=>`${s.label}: ${s.value}`).join('\n'))}</textarea>
@@ -237,7 +241,7 @@ function renderEditorPhotos(){
   wrap.innerHTML=editorPhotos.length ? editorPhotos.map((ph,i)=>`<div class="photo-tile"><img src="${esc(safeImage(ph.preview||ph.url))}" alt="Foto ${i+1}">
     <label for="photo-color-${i}">Foto ${i+1} · Asociar al color</label><select id="photo-color-${i}" data-photo-color="${esc(ph.id)}"><option value="">Sin color específico</option>
     ${editorColors.map(c=>`<option value="${esc(c.name)}" ${ph.color===c.name?'selected':''}>${esc(c.name)}</option>`).join('')}</select>
-    <button type="button" data-admin-action="remove-photo" data-photo-id="${esc(ph.id)}">✕ Quitar foto</button></div>`).join('') : '<p class="muted">Todavía no hay fotos. Añade al menos una antes de guardar.</p>';
+    <button type="button" data-admin-action="remove-photo" data-photo-id="${esc(ph.id)}">✕ Quitar foto</button></div>`).join('') : '<p class="muted">Sin fotos todavía. Puedes guardar el producto con una imagen provisional y agregar fotografías después.</p>';
 }
 function addColor(name,hex){
   name=String(name||'').trim().slice(0,35);if(!name)return notify('Escribe el nombre del color.');
@@ -288,7 +292,7 @@ async function saveProduct(form){
   if(!name || !Number.isFinite(price) || price<=0 || !Number.isInteger(stock) || stock<0){status.textContent='Revisa nombre, precio y cantidad disponible.';return;}
   if(oldPrice<0 || !Number.isFinite(oldPrice)){status.textContent='El precio anterior no es válido.';return;}
   if(oldPrice>0 && oldPrice<=price){status.textContent='El precio anterior debe ser superior al actual para indicar descuento, o déjalo en blanco.';return;}
-  if(!editorPhotos.length || editorPhotos.length>10){status.textContent='Necesitas entre 1 y 10 fotografías por producto.';return;}
+  if(editorPhotos.length>10){status.textContent='Puedes agregar como máximo 10 fotografías por producto.';return;}
   saving=true;const button=$('save-product');button.disabled=true;
   const productRef=editId ? sdk.doc(db,'products',editId) : sdk.doc(sdk.collection(db,'products'));
   const uploadedPaths=[];
@@ -314,7 +318,19 @@ async function saveProduct(form){
     const removed=(current?.photos||[]).map(p=>p.path).filter(path=>path && !photos.some(p=>p.path===path));
     await cleanupPaths(removed);
     notify(current?'Producto actualizado.':'Producto agregado.');returnToProductsAfterSave();
-  }catch(e){await cleanupPaths(uploadedPaths);status.textContent=`Error al guardar: ${e.code||e.message}`;notify('No se pudo guardar el producto.');}
+  }catch(e){await cleanupPaths(uploadedPaths);
+    const help={
+      'storage/unauthorized':'Revisa el UID del administrador en las reglas de Storage y vuelve a publicarlas.',
+      'storage/unauthenticated':'La sesión del administrador venció. Sal y vuelve a ingresar.',
+      'storage/bucket-not-found':'Revisa que storageBucket sea exactamente el bucket que aparece en Firebase Storage.',
+      'storage/no-default-bucket':'Falta configurar el valor storageBucket en firebase-config.js.',
+      'storage/quota-exceeded':'Revisa si Storage está habilitado y si Firebase solicita el plan Blaze.',
+      'storage/project-not-found':'Revisa el projectId de firebase-config.js.',
+      'storage/unknown':'Revisa la activación de Storage, la facturación y la conexión a internet.',
+      'storage/retry-limit-exceeded':'Se agotó el tiempo de subida. Prueba otra vez con una fotografía más pequeña.'
+    }[e.code]||'';
+    status.textContent=`Error al guardar: ${e.code||e.message}. ${help} Si no puedes subir archivos ahora, quita la foto seleccionada y agrega una foto por enlace de GitHub, o guarda el producto sin fotos.`;
+    notify('No se pudo guardar el producto. Revisa el mensaje debajo del formulario.');}
   finally{saving=false;const btn=$('save-product');if(btn)btn.disabled=false;}
 }
 function returnToProductsAfterSave(){clearPhotoPreviews();editorPhotos=[];editorColors=[];editId=null;adminTab='products';renderAdmin();}
@@ -376,6 +392,15 @@ adminContent.addEventListener('click', async e=>{
   if(act==='remove-color'){
     const c=editorColors.splice(Number(b.dataset.index),1)[0];if(c)editorPhotos.forEach(ph=>{if(ph.color===c.name)ph.color='';});
     renderSelectedColors();renderEditorPhotos();return;
+  }
+  if(act==='add-photo-url'){
+    const input=$('photo-url');const url=String(input?.value||'').trim();
+    if(editorPhotos.length>=10){notify('Puedes cargar como máximo 10 fotos por producto.');return;}
+    if(!(/^https:\/\//i.test(url)||/^assets\/[\w.-]+\.(?:jpg|jpeg|png|webp)$/i.test(url))){
+      notify('Escribe una dirección HTTPS o una ruta como assets/camioneta-roja.jpg.');return;
+    }
+    editorPhotos.push({id:crypto.randomUUID(),url,path:'',color:'',file:null,preview:url});
+    input.value='';renderEditorPhotos();notify('Foto por enlace agregada. Puedes asociarla a un color.');return;
   }
   if(act==='remove-photo'){
     const index=editorPhotos.findIndex(ph=>ph.id===b.dataset.photoId);if(index>=0){
