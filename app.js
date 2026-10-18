@@ -278,12 +278,23 @@ const isCloudinaryPublicId = v => typeof v === 'string' && v.startsWith(CLOUDINA
 function workerReady(){
   return /^https:\/\/[^\s/]+(?:\/[^\s]*)?$/i.test(cloudinaryWorkerUrl) && !cloudinaryWorkerUrl.includes('REEMPLAZAR');
 }
+// Evita que el formulario permanezca indefinidamente esperando un archivo o token.
+async function waitLimit(promise, milliseconds, detail) {
+  let handle;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise((_, reject) => { handle = setTimeout(() => reject(new Error(detail)), milliseconds); })
+    ]);
+  } finally { clearTimeout(handle); }
+}
 async function makePNG(file) {
   if(file.type !== 'image/png' || !/\.png$/i.test(file.name)) throw Error('Solo se aceptan archivos PNG.');
   if(file.size > 10*1024*1024) throw Error('El PNG supera 10 MB. Elige uno más ligero.');
   const local = URL.createObjectURL(file);
   try {
-    const img = new Image(); img.src = local; await img.decode();
+    const img = new Image(); img.src = local;
+    await waitLimit(img.decode(), 15000, 'La imagen no pudo abrirse en 15 segundos. Comprueba que sea un PNG válido y vuelve a intentarlo.');
     if(img.naturalWidth > 6000 || img.naturalHeight > 6000) throw Error('Imagen demasiado grande. Reduce su tamaño.');
     // Comprueba transparencia REAL, no solo la extensión .png.
     const proof = document.createElement('canvas');
@@ -305,7 +316,7 @@ async function makePNG(file) {
 async function authorizeCloudinary(endpoint,body){
   if(!workerReady()) throw Error('Falta configurar cloudinary-config.js con la URL del Worker.');
   if(!isAdmin()) throw Error('Debes iniciar sesión como administrador.');
-  const token=await activeUser.getIdToken();
+  const token=await waitLimit(activeUser.getIdToken(), 15000, 'Firebase no respondió al solicitar la sesión. Cierra sesión, vuelve a ingresar al administrador e inténtalo.');
   const controller=new AbortController();const timeout=setTimeout(()=>controller.abort(),18000);
   try {
     const response=await fetch(cloudinaryWorkerUrl.replace(/\/$/,'')+endpoint,{
@@ -350,7 +361,9 @@ async function saveProduct(form){
   if(oldPrice<0 || !Number.isFinite(oldPrice)){status.textContent='El precio anterior no es válido.';return;}
   if(oldPrice>0 && oldPrice<=price){status.textContent='El precio anterior debe ser superior al actual para indicar descuento, o déjalo en blanco.';return;}
   if(editorPhotos.length>10){status.textContent='Puedes agregar como máximo 10 fotografías por producto.';return;}
-  if(editorPhotos.some(pic => !( /^https:\/\//i.test(pic.url) || /^assets\/[\w.-]+\.(?:jpg|jpeg|png|webp|svg)$/i.test(pic.url)))) {
+  // Los archivos elegidos aún no tienen URL: se suben a Cloudinary antes de guardar.
+  // Solo las fotografías agregadas por enlace necesitan validación de URL.
+  if(editorPhotos.some(pic => !pic.file && !( /^https:\/\//i.test(pic.url) || /^assets\/[\w.-]+\.(?:jpg|jpeg|png|webp|svg)$/i.test(pic.url)))) {
     status.textContent='Hay una ruta de imagen no válida. Usa assets/nombre.jpg o una URL HTTPS.';
     return;
   }
@@ -366,9 +379,10 @@ async function saveProduct(form){
       const pic=editorPhotos[i];
       if(pic.file){
         status.textContent=`Validando PNG ${i+1} de ${editorPhotos.length}…`;
-        const png=await makePNG(pic.file);
-        status.textContent=`Autorizando foto ${i+1} de ${editorPhotos.length}…`;
-        const signed=await authorizeCloudinary('/sign');
+        const png=await waitLimit(makePNG(pic.file), 25000, 'Se agotó el tiempo preparando el PNG. Intenta con una foto menor de 2 MB y de 1200 px por lado.');
+        status.textContent=`Autorizando foto ${i+1} de ${editorPhotos.length} con Cloudflare…`;
+        const signed=await waitLimit(authorizeCloudinary('/sign'), 26000, 'Cloudflare no respondió a tiempo. Revisa el Worker y sus seis variables.');
+        if(!signed?.cloud_name || !signed?.api_key || !signed?.signature || !signed?.params) throw Error('Cloudflare devolvió una autorización incompleta. Revisa el Worker.');
         status.textContent=`Subiendo foto ${i+1}/${editorPhotos.length} · 0%`;
         const uploaded=await cloudinaryUploadPNG(png,signed,pct=>{status.textContent=`Subiendo foto ${i+1}/${editorPhotos.length} · ${pct}%`;});
         uploadedPaths.push(uploaded.public_id);
@@ -423,7 +437,7 @@ adminContent.addEventListener('change',e=>{
     }
     files.forEach(file=>editorPhotos.push({id:crypto.randomUUID(),url:'',path:'',color:'',file,preview:URL.createObjectURL(file)}));
     renderEditorPhotos();
-    notify(`${files.length} foto(s) listas. Asigna sus colores y pulsa Guardar producto.`);
+    notify(`${files.length} PNG listo(s) para Cloudinary. Asigna sus colores y pulsa Guardar producto.`);
   }
   if(e.target.matches('[data-photo-color]')){
     const ph=editorPhotos.find(p=>p.id===e.target.dataset.photoColor);if(ph)ph.color=e.target.value;
