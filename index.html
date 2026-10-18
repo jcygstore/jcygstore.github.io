@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#f8fbff">
+  <meta name="description" content="JCYG STORE: juguetes, tecnología y electrónicos. Consulta productos y precios y compra por WhatsApp.">
+  <title>JCYG STORE | Catálogo</title>
+  <link rel="icon" type="image/png" href="assets/jcyg-store-logo.png">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main id="feed" class="feed" aria-label="Catálogo de productos"></main>
+  <div id="modal" class="modal" role="dialog" aria-modal="true" aria-label="Detalles del producto" aria-hidden="true">
+    <section id="sheet" class="sheet"></section>
+  </div>
+  <div id="admin-overlay" class="admin-overlay" role="dialog" aria-modal="true" aria-label="Administración de JCYG STORE" aria-hidden="true">
+    <section class="admin-dialog">
+      <header class="admin-header">
+        <div class="admin-brand"><img src="assets/jcyg-store-logo.png" alt="JCYG STORE"><div><strong>Panel administrador</strong><small>Gestión de la tienda</small></div></div>
+        <button type="button" id="admin-close" class="circle-close" aria-label="Cerrar panel">✕</button>
+      </header>
+      <div id="admin-content" class="admin-content"></div>
+    </section>
+  </div>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <script type="module" src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,21 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isAdmin() {
+      return request.auth != null && request.auth.uid == 't4hN5FCwqxN5KRRYNrNigvWhB2j1';
+    }
+    match /products/{productId} {
+      // Los compradores solo pueden leer productos publicados.
+      allow get, list: if (resource.data.published == true) || isAdmin();
+      allow create, update, delete: if isAdmin();
+    }
+    match /settings/{settingId} {
+      allow get: if settingId == 'storefront' || isAdmin();
+      allow list: if isAdmin();
+      allow create, update, delete: if isAdmin();
+    }
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
