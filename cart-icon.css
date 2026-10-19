@@ -80,3 +80,50 @@ button .icon-wrap, button .btn-icon-wrap, button .cart-img-wrap {
   width: 1.8rem !important;
   height: 1.8rem !important;
 }
+
+
+/* Ajuste final octubre 2026: iconos más grandes/oscuros y más espacio */
+.cart-side .ico {
+  background-size: 96% auto !important;
+  background-position: center !important;
+}
+#cart-floating::before {
+  width: 38px !important;
+  height: 38px !important;
+  background-size: contain !important;
+}
+.cart-detail-btn::before {
+  width: 38px !important;
+  height: 38px !important;
+  flex-basis: 38px !important;
+  background-size: contain !important;
+}
+/* Botón Catálogo 2026 un poco más grande */
+.admin-entry {
+  font-size: 13px !important;
+  padding: 13px 18px !important;
+}
+.admin-entry svg, .admin-entry .ico, .admin-entry i {
+  width: 20px !important;
+  height: 20px !important;
+}
+/* Más espacio entre los iconos laterales */
+.card .actions {
+  gap: 13px !important;
+  right: 12px !important;
+}
+.card .actions .act {
+  margin: 1px 0 !important;
+}
+.card .actions .ico {
+  width: 50px !important;
+  height: 50px !important;
+}
+/* Un poco más de separación arriba si se comprime en móvil */
+@media (max-width: 540px) {
+  .card .actions { gap: 11px !important; right: 11px !important; }
+  .card .actions .ico { width: 45px !important; height: 45px !important; }
+  #cart-floating::before { width: 34px !important; height: 34px !important; }
+  .cart-detail-btn::before { width: 34px !important; height: 34px !important; flex-basis: 34px !important; }
+  .admin-entry { font-size: 12px !important; padding: 11px 15px !important; }
+}
