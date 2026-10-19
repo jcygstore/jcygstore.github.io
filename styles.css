@@ -135,3 +135,31 @@ html,body{background:#f8fbff}
 .cart-panel .whatsapp{display:flex;justify-content:center;align-items:center;gap:10px}
 .cart-panel .whatsapp svg{width:23px;height:23px}
 @media(max-width:540px){.card .info{right:78px;bottom:28px}.card .actions{bottom:75px;gap:9px;right:10px}.card .actions .ico{width:43px;height:43px}.card .actions .ico svg{width:25px;height:25px}.card .actions .act small{font-size:9px}.card .info .name{font-size:clamp(23px,6vw,34px)}.card .info .price{font-size:24px}.admin-entry{font-size:11px!important;padding:9px 11px!important}#cart-floating{top:95px;right:12px}}
+
+/* JCYG STORE · botones de compra y códigos JS-0001 */
+.card .actions{bottom:70px;gap:7px}
+.card .actions .ico{width:45px;height:45px}
+.card .actions .act small{font-size:10px;line-height:1.15;margin-top:3px}
+.card .actions .act{min-width:52px}
+.card .actions .ico svg{width:27px;height:27px}
+.card .actions .likes-text{font-size:12px;font-weight:900;font-variant-numeric:tabular-nums;line-height:1.2}
+.consult-side .ico{background:#25d366;color:#fff;border:none;box-shadow:0 10px 24px #25d36644}
+.consult-side small{color:#168347!important}
+.buy-side .ico{background:linear-gradient(145deg,#6f5bfa,#417ae7);color:#fff;box-shadow:0 10px 24px #7c63fa44}
+.buy-side small{color:#574fba!important}
+.cart-side .ico{background:#fff;color:#604cdd;border-color:#ded6ff}
+.cart-side:disabled{opacity:.48;cursor:not-allowed}
+.cart-side:disabled .ico{box-shadow:none}
+#cart-floating svg{width:27px;height:27px}
+.primary.whatsapp,.primary.cart-detail-btn,.primary.purchase-detail-btn{display:flex;align-items:center;justify-content:center;gap:9px;min-height:47px}
+.primary.whatsapp svg,.primary.cart-detail-btn svg,.primary.purchase-detail-btn svg{width:22px;height:22px}
+.purchase-detail-btn{background:linear-gradient(100deg,#7160ef,#4588ed);margin-top:9px}
+.cart-detail-btn{background:#efeaff;color:#5e4dc0;margin-top:9px}
+/* Mantiene «Consultar» en la misma posición para todas las fichas. */
+@media(max-width:540px){
+  .card .actions{bottom:62px;right:8px;gap:6px}
+  .card .actions .ico{width:41px;height:41px}
+  .card .actions .ico svg{width:24px;height:24px}
+  .card .actions .act small{font-size:9px}
+  .card .info{right:79px}
+}

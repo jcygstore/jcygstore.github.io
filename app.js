@@ -36,11 +36,19 @@ let likeCounts = new Map(), cart = []; try { cart = JSON.parse(localStorage.getI
 let unsubscribeLikes = null;
 const heartSvg = `<svg width="29" height="29" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.8 4.6a5.4 5.4 0 0 0-7.7 0L12 5.7l-1.1-1.1a5.4 5.4 0 0 0-7.7 7.7l1.1 1.1L12 21l7.7-7.6 1.1-1.1a5.4 5.4 0 0 0 0-7.7Z"/></svg>`;
 const waSvg = `<svg width="29" height="29" viewBox="0 0 32 32" aria-hidden="true" fill="currentColor"><path d="M16 .8A15.2 15.2 0 0 0 2.8 23.5L.9 31l7.7-2a15.2 15.2 0 1 0 7.4-28.2Zm0 27.5c-2.2 0-4.3-.6-6.2-1.7l-.5-.3-4.5 1.2L6 23l-.3-.5a12.3 12.3 0 1 1 10.3 5.8Zm6.8-9.2c-.4-.2-2.3-1.1-2.7-1.3-.4-.1-.6-.2-.9.2s-1 1.3-1.2 1.5c-.2.2-.4.3-.8.1-.4-.2-1.6-.6-3.1-1.9-1.1-1-1.8-2.2-2-2.6-.2-.4 0-.6.1-.8l.6-.7c.2-.2.3-.4.4-.7.1-.2.1-.5 0-.7-.1-.2-.9-2.2-1.2-3-.3-.7-.6-.6-.9-.6h-.8c-.3 0-.7.1-1 .5-.4.4-1.4 1.4-1.4 3.4s1.4 3.9 1.6 4.2c.2.3 2.8 4.3 6.8 6 .9.4 1.7.6 2.2.8.9.3 1.7.2 2.4.1.7-.1 2.3-.9 2.6-1.8.3-.9.3-1.7.2-1.8-.1-.2-.4-.3-.8-.5Z"/></svg>`;
-const bagSvg = `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h16l-1 12H5L4 8Z"/><path d="M9 9V6a3 3 0 0 1 6 0v3"/></svg>`;
+// Mismo carrito de supermercado en ambas acciones; el signo + identifica «Añadir».
+const cartSvg = `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2 2h2l2.5 12.5a2 2 0 0 0 2 1.5h10a2 2 0 0 0 2-1.5L22 7H5"/></svg>`;
+const cartPlusSvg = `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2 2h2l2.5 12.5a2 2 0 0 0 2 1.5h10a2 2 0 0 0 2-1.5L22 7H5"/><path d="M16 2v6m-3-3h6" stroke-width="2.3"/></svg>`;
 let sdk = null, db = null, auth = null, activeUser = null;
 let unsubscribePublic = null, unsubscribeAdmin = null, unsubscribeSettings = null;
 let adminTab = 'products', editId = null, editorColors = [], editorPhotos = [], saving = false;
 let toastTimer = null;
+let lastKnownProductNumber = 0;
+let editorAutoCode = null;
+const CODE_PATTERN = /^JS-(\d{4})$/;
+function numberFromCode(code){const m=CODE_PATTERN.exec(String(code||'').toUpperCase());return m?Number(m[1]):0;}
+function nextCodeNumber(){return Math.max(lastKnownProductNumber, ...adminProducts.map(p=>numberFromCode(p.code)), 0)+1;}
+function formattedCode(number){if(number<1||number>9999)throw Error('Se llegó al límite de 9 999 códigos JS-0000.');return `JS-${String(number).padStart(4,'0')}`;}
 
 const esc = (value) => String(value ?? '').replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const money = (num) => 'S/ ' + Number(num || 0).toLocaleString('es-PE',{minimumFractionDigits:2,maximumFractionDigits:2});
@@ -54,7 +62,7 @@ const isAdmin = () => !!activeUser && activeUser.uid === adminUid;
 const normalize = (doc) => ({
   ...doc, id:String(doc.id), name:String(doc.name || 'Producto sin nombre'), desc:String(doc.desc || ''),
   stock:Math.max(0,Math.floor(Number(doc.stock) || 0)), price:Number(doc.price) || 0,
-  oldPrice:Number(doc.oldPrice) || 0, published:doc.published !== false, outOfStock:Boolean(doc.outOfStock) || Number(doc.stock)===0, code:String(doc.code||('JCYG-'+String(doc.id).slice(-6).toUpperCase())),
+  oldPrice:Number(doc.oldPrice) || 0, published:doc.published !== false, outOfStock:Boolean(doc.outOfStock) || Number(doc.stock)===0, code:String(doc.code||'Sin asignar'),
   colors:Array.isArray(doc.colors) ? doc.colors.map(c => ({name:String(c.name || '').slice(0,35),hex:validColor(c.hex)})) : [],
   photos:Array.isArray(doc.photos) ? doc.photos.slice(0,10).map(p => ({url:safeImage(p.url),path:String(p.path || ''),color:String(p.color || '')})) : [],
   specs:Array.isArray(doc.specs) ? doc.specs.map(s => ({label:String(s.label || 'Detalle'),value:String(s.value || '')})) : []
@@ -68,7 +76,7 @@ function header() {
   return `<div class="top"><div class="logo"><img class="brand-logo" src="${logoPath}" alt="JCYG STORE"></div><button type="button" class="tag admin-entry" data-action="admin" title="Ingresar a administración">Catálogo 2026</button></div>`;
 }
 function renderFeed() {
-  let floating=document.getElementById('cart-floating');if(!floating){floating=document.createElement('button');floating.id='cart-floating';floating.type='button';floating.innerHTML=`${bagSvg}<span class="cart-count">0</span>`;floating.setAttribute('aria-label','Abrir carrito');floating.addEventListener('click',cartPanel);document.body.appendChild(floating);}updateCartBadges();
+  let floating=document.getElementById('cart-floating');if(!floating){floating=document.createElement('button');floating.id='cart-floating';floating.type='button';floating.innerHTML=`${cartSvg}<span class="cart-count">0</span>`;floating.setAttribute('aria-label','Abrir carrito');floating.addEventListener('click',cartPanel);document.body.appendChild(floating);}updateCartBadges();
   if(!products.length) {
     feed.innerHTML = `<section class="no-products"><div class="empty-center"><img src="${logoPath}" alt="JCYG STORE"><h2>Pronto tendremos novedades</h2><p>Estamos preparando nuestro catálogo de productos.</p><button class="tag admin-entry" data-action="admin" type="button">Catálogo 2026 · Administrador</button></div></section>`;
     return;
@@ -84,10 +92,11 @@ function renderFeed() {
           ${p.colors.length ? `<span class="available-colors"><span class="available-colors-label">Colores:</span>${p.colors.map((c,i) => `<button type="button" class="mini-color-btn ${selected===c.name?'selected':''}" style="--c:${validColor(c.hex)}" title="${esc(c.name)}" aria-label="Ver color ${esc(c.name)}" data-action="color" data-color-index="${i}"></button>`).join('')}</span>` : ''}
         </div><div class="price"><span class="currency">Precio</span><strong>${money(p.price)}</strong>${off ? `<del>${money(p.oldPrice)}</del><span class="discount">-${off}%</span>` : ''}</div>
       </div><div class="actions">
-        <button class="act ${likes.has(p.id)?'liked':''}" type="button" data-action="like" aria-label="Me gusta" aria-pressed="${likes.has(p.id)}"><span class="ico heart-ico">${heartSvg}</span><small class="likes-text">♥ ${likeCounts.get(p.id)||0}</small></button>
+        <button class="act ${likes.has(p.id)?'liked':''}" type="button" data-action="like" aria-label="Me gusta" aria-pressed="${likes.has(p.id)}"><span class="ico heart-ico">${heartSvg}</span><small class="likes-text">${likeCounts.get(p.id)||0}</small></button>
         <button class="act" type="button" data-action="details" aria-label="Ver características"><span class="ico">＋</span><small>Detalles</small></button>
-        <button class="act buy-side" type="button" data-action="buy" aria-label="Comprar por WhatsApp"><span class="ico">${waSvg}</span><small>${unavailable(p)?'Avisarme':'Comprar'}</small></button>
-        <button class="act cart-side" type="button" data-action="cart-add" aria-label="Agregar al carrito"><span class="ico">${bagSvg}<span class="cart-count">${cartTotal()}</span></span><small>Carrito</small></button>
+        <button class="act consult-side" type="button" data-action="consult" aria-label="Consultar por WhatsApp"><span class="ico">${waSvg}</span><small>Consultar</small></button>
+        <button class="act buy-side" type="button" data-action="buy" aria-label="Comprar por WhatsApp"><span class="ico">${cartSvg}</span><small>${unavailable(p)?'Avisarme':'Comprar'}</small></button>
+        <button class="act cart-side" type="button" data-action="cart-add" aria-label="Añadir al carrito" ${unavailable(p)?'disabled title="Producto agotado"':''}><span class="ico">${cartPlusSvg}</span><small>Añadir</small></button>
       </div></article>`;
   }).join('');
   const cards = [...feed.querySelectorAll('.card')];
@@ -121,8 +130,9 @@ function renderDetails(p) {
     <p class="detail-desc">${esc(p.desc)}</p>
     ${p.colors.length ? `<div class="detail-subtitle">Selecciona un color${selected ? `: ${esc(selected)}` : ''}</div><div class="color-list">${p.colors.map((c,i)=>`<button class="color-choice ${selected===c.name?'selected':''}" type="button" data-detail-action="color" data-color-index="${i}"><i class="color-dot" style="background:${validColor(c.hex)}"></i>${esc(c.name)}</button>`).join('')}</div>` : ''}
     <h3 class="spec-title">Características completas</h3>${specs ? `<div class="detail-specs">${specs}</div>` : '<p class="muted">Consulta las características por WhatsApp.</p>'}
-    <button type="button" class="primary whatsapp" data-detail-action="buy">${unavailable(p)?'WhatsApp · Avísame cuando esté disponible':'WhatsApp · Consultar producto'}</button>
-    ${!unavailable(p)?'<button type="button" class="primary cart-detail-btn" data-detail-action="cart-add">🛒 Agregar al carrito</button>':''}
+    <button type="button" class="primary whatsapp" data-detail-action="consult">${waSvg} Consultar por WhatsApp</button>
+    <button type="button" class="primary purchase-detail-btn" data-detail-action="buy">${cartSvg} ${unavailable(p)?'Avísame cuando esté disponible':'Comprar'}</button>
+    ${!unavailable(p)?`<button type="button" class="primary cart-detail-btn" data-detail-action="cart-add">${cartPlusSvg} Añadir al carrito</button>`:''}
     <div class="notice">Confirma disponibilidad, precio y entrega con la tienda.</div></div>`;
 }
 function openProduct(id) {
@@ -136,14 +146,23 @@ function waLink(message){
   if(!/^\d{8,15}$/.test(phone)){notify('Configura primero el WhatsApp de la tienda.');return;}
   window.open(`https://wa.me/${phone}?text=${encodeURIComponent(message)}`,'_blank','noopener,noreferrer');
 }
+function productLabel(p){
+  const color=selection(p);
+  return `${p.name} (Código: ${p.code})${color?', color '+color:''}`;
+}
+function consultProduct(id){
+  const p=getProduct(id);if(!p)return;
+  const label=productLabel(p);
+  waLink(unavailable(p)
+    ? `Hola, me interesa ${label}, pero está agotado. ¿Podrían avisarme cuando esté disponible?`
+    : `Hola, quisiera consultar por ${label}. ¿Me brindan más información?`);
+}
 function buyProduct(id){
   const p=getProduct(id);if(!p)return;
-  const color=selection(p);
-  const label=`${p.name} (Código: ${p.code})${color?', color '+color:''}`;
-  const message=unavailable(p)
-    ? `Hola, me interesa el producto ${label}, pero figura como AGOTADO. ¿Podrían avisarme cuando vuelva a estar disponible?`
-    : `Hola, quiero consultar por ${label}. Precio: ${money(p.price)}. ¿Está disponible y cómo sería la entrega?`;
-  waLink(message);
+  const label=productLabel(p);
+  waLink(unavailable(p)
+    ? `Hola, quiero comprar ${label}, pero aparece agotado. ¿Me pueden avisar cuando vuelva a estar disponible?`
+    : `Hola, quiero comprar ${label}. Precio publicado: ${money(p.price)}. ¿Me confirman disponibilidad y entrega?`);
 }
 function cartTotal(){return cart.reduce((n,item)=>n+item.qty,0);}
 function saveCart(){localStorage.setItem('jcyg_cart_v2',JSON.stringify(cart));updateCartBadges();}
@@ -195,7 +214,7 @@ function updateLikeButtons(){
   for(const card of feed.querySelectorAll('.card')){
     const id=card.dataset.id,btn=card.querySelector('[data-action="like"]');if(!btn)continue;
     btn.classList.toggle('liked',likes.has(id));btn.setAttribute('aria-pressed',String(likes.has(id)));
-    const label=btn.querySelector('.likes-text');if(label)label.textContent=`♥ ${likeCounts.get(id)||0}`;
+    const label=btn.querySelector('.likes-text');if(label)label.textContent=String(likeCounts.get(id)||0);
   }
 }
 feed.addEventListener('click',(e) => {
@@ -206,12 +225,12 @@ feed.addEventListener('click',(e) => {
   if(action==='like') toggleLike(id);
   if(action==='details') openProduct(id);
   if(action==='buy') buyProduct(id);
+  if(action==='consult') consultProduct(id);
   if(action==='cart-add') addToCart(id);
   if(action==='color') {const p=getProduct(id);const c=p?.colors[Number(btn.dataset.colorIndex)];if(c)chooseColor(id,c.name);}
 });
 modal.addEventListener('click',e => {
   if(e.target===modal) {closeProduct();return;}
-  const b=e.target.closest('[data-detail-action]'); if(!b) return;
   const cb=e.target.closest('[data-cart]');
   if(cb){
     const action=cb.dataset.cart,index=Number(cb.dataset.index),item=cart[index];
@@ -221,9 +240,11 @@ modal.addEventListener('click',e => {
       if(action==='plus'){const p=getProduct(item.id),sum=cart.filter(i=>i.id===item.id).reduce((n,i)=>n+i.qty,0);if(!unavailable(p)&&sum<p.stock)item.qty++;else notify('Stock máximo alcanzado.');}
       saveCart();cartPanel();}return;
   }
+  const b=e.target.closest('[data-detail-action]'); if(!b) return;
   const p=getProduct(currentId);if(!p)return;
   if(b.dataset.detailAction==='close') closeProduct();
   if(b.dataset.detailAction==='buy') buyProduct(p.id);
+  if(b.dataset.detailAction==='consult') consultProduct(p.id);
   if(b.dataset.detailAction==='cart-add'){addToCart(p.id);}
   if(b.dataset.detailAction==='color') {const c=p.colors[Number(b.dataset.colorIndex)];if(c)chooseColor(p.id,c.name);}
   if(b.dataset.detailAction==='photo') {
@@ -278,16 +299,18 @@ function openEditor(id=null){
   clearPhotoPreviews();editId=id;adminTab='editor';const existing=adminProducts.find(p=>p.id===id);
   editorColors=existing ? existing.colors.map(c=>({...c})) : [];
   editorPhotos=existing ? existing.photos.map((p,i)=>({...p,id:`saved-${i}`,file:null,preview:p.url})) : [];
+  editorAutoCode=null;
+  if(!existing){try{editorAutoCode=formattedCode(nextCodeNumber());}catch(e){notify(e.message);editorAutoCode='';}}
   renderAdmin();
 }
-function makeCode(){return 'JCYG-'+(globalThis.crypto?.randomUUID?.().replace(/-/g,'').slice(0,8)||Math.random().toString(36).slice(2,10)).toUpperCase();}
+function makeCode(){return formattedCode(nextCodeNumber());}
 function renderEditor(){
   const p=adminProducts.find(x=>x.id===editId);
   adminContent.innerHTML=`<div class="admin-topline"><h2>${p?'Editar producto':'Agregar producto'}</h2><button type="button" class="admin-secondary" data-admin-action="cancel-editor">← Regresar</button></div>
   <form id="editor-form"><div class="admin-panel"><h3>Información principal</h3>
     <div class="editor-grid">
       <label class="admin-field span-all">Nombre del producto<input name="name" required maxlength="130" placeholder="Camioneta eléctrica infantil" value="${esc(p?.name||'')}"></label>
-      <label class="admin-field">Código del producto (editable)<input name="code" required maxlength="30" pattern="[A-Za-z0-9-]+" value="${esc(p?.code||makeCode())}" placeholder="JCYG-7A2D91"><small>Se genera automáticamente, pero puedes editarlo. Solo letras, números y guiones.</small></label>
+      <label class="admin-field">Código del producto (editable)<input name="code" required maxlength="7" minlength="7" pattern="[Jj][Ss]-[0-9]{4}" value="${esc(p?.code&&CODE_PATTERN.test(p.code)?p.code:(editorAutoCode||makeCode()))}" placeholder="JS-0001" autocapitalize="characters"><small>Formato: JS-0001. Se genera automáticamente y puedes cambiar los cuatro números.</small></label>
       <label class="admin-field span-all">Descripción breve<textarea name="desc" maxlength="500" rows="3" placeholder="Luces LED · MP3 · USB · Control remoto">${esc(p?.desc||'')}</textarea></label>
       <label class="admin-field">Precio actual (S/)<input type="number" name="price" required min="0.01" step="0.01" value="${p?.price||''}" placeholder="850.00"></label>
       <label class="admin-field">Precio anterior (opcional)<input type="number" name="oldPrice" min="0" step="0.01" value="${p?.oldPrice||''}" placeholder="900.00"><small>Si es mayor al precio actual se mostrará el porcentaje de descuento.</small></label>
@@ -301,11 +324,10 @@ function renderEditor(){
         <label class="admin-field">Tono<input name="customColorHex" type="color" value="#2563eb"></label>
         <button class="admin-secondary" type="button" data-admin-action="custom-color">Añadir</button></div></div>
     <div class="admin-panel"><h3>Fotografías del producto · Cloudinary</h3>
-      <p class="muted">Selecciona hasta 10 archivos PNG transparentes desde tu computadora o celular. Las fotos se guardarán en Cloudinary al pulsar <strong>Guardar producto</strong>, sin Firebase Storage.</p>
-      <label class="admin-field">Archivos PNG con fondo transparente (máximo 10 MB cada uno)
-        <input id="product-photos" type="file" accept="image/png,.png" multiple>
-        <small>Recomendado: PNG transparente, 1200–1600 px por lado. El sistema verifica el fondo y conserva la transparencia.</small></label>
-      <div class="admin-note" id="cloudinary-config-status">${cloudinaryWorkerUrl && !cloudinaryWorkerUrl.includes('REEMPLAZAR') ? 'Cloudinary listo para probar. Solo el administrador puede solicitar subidas firmadas.' : 'Pendiente: abre cloudinary-config.js y pega la dirección de tu Cloudflare Worker antes de subir fotos.'}</div>
+      <p class="muted">Requisitos: <strong>PNG transparente · Máximo 10 fotos · Hasta 10 MB por foto</strong>.</p>
+      <label class="admin-field">Seleccionar fotografías
+        <input id="product-photos" type="file" accept="image/png,.png" multiple></label>
+      ${!workerReady()?'<p class="admin-error">Falta configurar Cloudinary para subir fotografías.</p>':''}
       <details style="margin-top:12px"><summary style="cursor:pointer">¿Ya tengo una foto en GitHub? Añadir por enlace</summary>
         <label class="admin-field" style="margin-top:9px">Ruta de imagen en GitHub
           <input id="photo-url" type="text" inputmode="url" spellcheck="false" autocomplete="off" placeholder="assets/camioneta-roja.jpg"></label>
@@ -316,8 +338,12 @@ function renderEditor(){
       <textarea name="specs" rows="9" placeholder="Dimensiones: 120 × 74 × 80 cm\nMaterial: ABS de alta calidad\nMotor: 4 × 380 W\nBatería: 2 × 6V 4.5Ah\nIncluye: Control remoto, luces LED">${esc((p?.specs||[]).map(s=>`${s.label}: ${s.value}`).join('\n'))}</textarea>
       <small>Estas características se muestran cuando el comprador abre «Detalles».</small></label></div>
     <div id="save-status" class="admin-working" aria-live="polite"></div>
-    <div class="form-footer"><button type="button" class="admin-secondary" data-admin-action="cancel-editor">Cancelar</button><button type="submit" class="admin-primary" id="save-product">Guardar producto</button></div></form>`;
+    <div class="form-footer"><button type="button" id="cancel-product-editor" class="admin-secondary" data-admin-action="cancel-editor">Cancelar</button><button type="submit" class="admin-primary" id="save-product">Guardar producto</button></div></form>`;
   renderSelectedColors();renderEditorPhotos();
+  // Captura el clic de cancelar de forma explícita, incluso si los demás campos son inválidos.
+  adminContent.querySelectorAll('[data-admin-action="cancel-editor"]').forEach(button=>{
+    button.addEventListener('click',event=>{event.preventDefault();event.stopPropagation();cancelEditor();});
+  });
 }
 function renderSelectedColors(){
   const selected=$('selected-colors'),palette=$('color-palette');if(!selected||!palette)return;
@@ -336,7 +362,14 @@ function addColor(name,hex){
   if(editorColors.some(c=>c.name.toLowerCase()===name.toLowerCase()))return notify('Ese color ya está agregado.');
   editorColors.push({name,hex:validColor(hex)});renderSelectedColors();renderEditorPhotos();
 }
-function returnToProducts(){if(saving)return;clearPhotoPreviews();editorPhotos=[];editorColors=[];editId=null;adminTab='products';renderAdmin();}
+function returnToProducts(){
+  if(saving){notify('Espera a que termine de guardarse el producto.');return;}
+  clearPhotoPreviews();editorPhotos=[];editorColors=[];editId=null;editorAutoCode=null;adminTab='products';renderAdmin();
+}
+function cancelEditor(){
+  // Cancelar descarta únicamente los cambios locales; no borra fotos ya publicadas.
+  returnToProducts();
+}
 async function handleLogin(form){
   const status=$('login-status');status.textContent='Verificando credenciales…';
   const b=form.querySelector('[type=submit]');b.disabled=true;
@@ -440,7 +473,7 @@ async function saveProduct(form){
   const name=form.elements.name.value.trim(),desc=form.elements.desc.value.trim();
   const price=Number(form.elements.price.value),oldPrice=Number(form.elements.oldPrice.value||0),outOfStock=form.elements.outOfStock.value==='true',stock=outOfStock?0:Number(form.elements.stock.value),code=form.elements.code.value.trim().toUpperCase();
   if(!name || !Number.isFinite(price) || price<=0 || !Number.isInteger(stock) || stock<0){status.textContent='Revisa nombre, precio y cantidad disponible.';return;}
-  if(!/^[A-Z0-9-]{3,30}$/.test(code)){status.textContent='Código inválido: usa entre 3 y 30 letras, números o guiones.';return;}
+  if(!CODE_PATTERN.test(code) || numberFromCode(code)===0){status.textContent='El código debe tener el formato JS-0001 (JS y cuatro números, desde 0001).';return;}
   if(adminProducts.some(p=>p.id!==editId&&p.code.toUpperCase()===code)){status.textContent='Ya existe un producto con ese código.';return;}
   if(oldPrice<0 || !Number.isFinite(oldPrice)){status.textContent='El precio anterior no es válido.';return;}
   if(oldPrice>0 && oldPrice<=price){status.textContent='El precio anterior debe ser superior al actual para indicar descuento, o déjalo en blanco.';return;}
@@ -476,7 +509,19 @@ async function saveProduct(form){
     status.textContent='Guardando producto en Firebase Firestore…';
     const payload={name,code,desc,price,oldPrice,stock,outOfStock,published:form.elements.published.value==='true',
       colors:editorColors.map(c=>({...c})),photos,specs:parseSpecs(form.elements.specs.value),updatedAt:sdk.serverTimestamp()};
-    await sdk.setDoc(productRef,payload,{merge:true});
+    // La secuencia se guarda en Firestore para no reutilizar códigos tras eliminar productos.
+    const seqRef=sdk.doc(db,'settings','productCodes');
+    await sdk.runTransaction(db,async transaction=>{
+      const seqSnap=await transaction.get(seqRef);
+      const last=seqSnap.exists()?Number(seqSnap.data().lastNumber)||0:0;
+      const currentMax=Math.max(last,lastKnownProductNumber,...adminProducts.map(p=>numberFromCode(p.code)),0);
+      let number=numberFromCode(code);
+      if(!current && code===editorAutoCode){number=currentMax+1;payload.code=formattedCode(number);}
+      const newMax=Math.max(currentMax,number);
+      transaction.set(seqRef,{lastNumber:newMax},{merge:true});
+      transaction.set(productRef,payload,{merge:true});
+      lastKnownProductNumber=newMax;
+    });
     const removed=(current?.photos||[]).map(p=>p.path).filter(path=>isCloudinaryPublicId(path)&&!photos.some(p=>p.path===path));
     notify(current?'Producto actualizado.':'Producto agregado.');returnToProductsAfterSave();
     for(const path of removed)await removeCloudinaryPhoto(path);
@@ -488,7 +533,7 @@ async function saveProduct(form){
     for(const path of uploadedPaths)await removeCloudinaryPhoto(path);
   }finally{saving=false;const btn=$('save-product');if(btn)btn.disabled=false;}
 }
-function returnToProductsAfterSave(){clearPhotoPreviews();editorPhotos=[];editorColors=[];editId=null;adminTab='products';renderAdmin();}
+function returnToProductsAfterSave(){clearPhotoPreviews();editorPhotos=[];editorColors=[];editId=null;editorAutoCode=null;adminTab='products';renderAdmin();}
 async function deleteProduct(id){
   const p=adminProducts.find(x=>x.id===id);if(!p)return;
   if(!confirm(`¿Eliminar definitivamente «${p.name}» del catálogo?`))return;
@@ -498,13 +543,20 @@ async function deleteProduct(id){
 async function importSamples(){
   if(!confirm('¿Importar los tres productos de ejemplo a Firebase? No reemplazará productos personalizados.'))return;
   try{
-    const batch=sdk.writeBatch(db);
-    for(const item of SAMPLE_PRODUCTS){
-      if(adminProducts.some(p=>p.id===item.id))continue;
-      const {id,...data}=item;
-      batch.set(sdk.doc(db,'products',id),{...data,code:data.code||makeCode(),updatedAt:sdk.serverTimestamp()});
-    }
-    await batch.commit();notify('Productos de ejemplo importados.');
+    const seqRef=sdk.doc(db,'settings','productCodes');
+    await sdk.runTransaction(db,async tx=>{
+      const snap=await tx.get(seqRef);
+      let last=Math.max(snap.exists()?Number(snap.data().lastNumber)||0:0,lastKnownProductNumber,...adminProducts.map(p=>numberFromCode(p.code)),0);
+      for(const item of SAMPLE_PRODUCTS){
+        if(adminProducts.some(p=>p.id===item.id))continue;
+        const {id,...data}=item;
+        last+=1;const code=formattedCode(last);
+        tx.set(sdk.doc(db,'products',id),{...data,code,updatedAt:sdk.serverTimestamp()});
+      }
+      tx.set(seqRef,{lastNumber:last},{merge:true});
+      lastKnownProductNumber=last;
+    });
+    notify('Productos de ejemplo importados.');
   }catch(e){notify(`No se pudieron importar: ${e.code||e.message}`);}
 }
 adminContent.addEventListener('submit', async e=>{
@@ -536,7 +588,7 @@ adminContent.addEventListener('click', async e=>{
   if(act==='tab-settings'){if(saving)return;adminTab='settings';renderAdmin();return;}
   if(act==='new')return openEditor();
   if(act==='edit')return openEditor(b.dataset.id);
-  if(act==='cancel-editor')return returnToProducts();
+  if(act==='cancel-editor')return cancelEditor();
   if(act==='delete')return deleteProduct(b.dataset.id);
   if(act==='import')return importSamples();
   if(act==='add-color'){
@@ -598,6 +650,9 @@ async function initFirebase(){
     authMod.onAuthStateChanged(auth,user=>{
       activeUser=user;if(unsubscribeAdmin){unsubscribeAdmin();unsubscribeAdmin=null;}
       if(isAdmin()){
+        firestore.getDoc(firestore.doc(db,'settings','productCodes')).then(snap=>{
+          lastKnownProductNumber=Math.max(lastKnownProductNumber,Number(snap.data()?.lastNumber)||0);
+        }).catch(err=>console.warn('Secuencia de productos:',err));
         unsubscribeAdmin=firestore.onSnapshot(firestore.collection(db,'products'),
           snap=>{adminProducts=snap.docs.map(d=>normalize({id:d.id,...d.data()})).sort((a,b)=>a.name.localeCompare(b.name,'es'));if(adminOverlay.classList.contains('show')&&adminTab==='products')renderAdmin();},
           err=>{console.error('Firestore admin:',err);notify('No puedes leer productos. Revisa el UID y las reglas.');});
