@@ -29,7 +29,7 @@ const SAMPLE_PRODUCTS = [
 ];
 const firebaseReady = Boolean(firebaseConfig.apiKey && !firebaseConfig.apiKey.startsWith('REEMPLAZAR') && firebaseConfig.projectId && !firebaseConfig.projectId.startsWith('REEMPLAZAR') && adminUid && !adminUid.startsWith('REEMPLAZAR'));
 let products = firebaseReady ? [] : structuredClone(SAMPLE_PRODUCTS);
-let adminProducts = [], settings = {whatsapp:''};
+let adminProducts = [], settings = {whatsapp:'',whatsappUsername:'',whatsappMode:'number'};
 let likes = new Set(); try { likes = new Set(JSON.parse(localStorage.getItem('jcyg_likes_v2') || '[]')); }catch{}
 let chosenColors = new Map(), currentId = null, photoIndex = 0;
 let likeCounts = new Map(), cart = []; try { cart = JSON.parse(localStorage.getItem('jcyg_cart_v2') || '[]'); if(!Array.isArray(cart))cart=[]; }catch{cart=[];}
@@ -160,10 +160,19 @@ function openProduct(id) {
   renderDetails(p); modal.classList.add('show'); modal.setAttribute('aria-hidden','false');
 }
 function closeProduct() {modal.classList.remove('show');modal.setAttribute('aria-hidden','true');currentId=null;}
+// El usuario debe estar ACTIVO en WhatsApp; un usuario solamente reservado no abre chats.
+function normalizeWhatsAppUsername(value){return String(value||'').trim().replace(/^@+/, '');}
+function validWhatsAppUsername(value){return /^[a-zA-Z0-9._]{3,40}$/.test(value);}
 function waLink(message){
   const phone=String(settings.whatsapp||'').replace(/\D/g,'');
-  if(!/^\d{8,15}$/.test(phone)){notify('Configura primero el WhatsApp de la tienda.');return;}
-  window.open(`https://wa.me/${phone}?text=${encodeURIComponent(message)}`,'_blank','noopener,noreferrer');
+  const username=normalizeWhatsAppUsername(settings.whatsappUsername);
+  const useUsername=settings.whatsappMode==='username';
+  const target=useUsername && validWhatsAppUsername(username)
+    ? username
+    : (/^\d{8,15}$/.test(phone) ? phone : '');
+  if(!target){notify('Configura el usuario o número de WhatsApp en Administración.');return;}
+  // WhatsApp documenta wa.me/Usuario; comprobar en el dispositivo si el texto se precarga.
+  window.open(`https://wa.me/${encodeURIComponent(target)}?text=${encodeURIComponent(message)}`,'_blank','noopener,noreferrer');
 }
 function productLabel(p){
   const color=selection(p);
@@ -297,12 +306,30 @@ function renderAdmin() {
     <div class="admin-actions" style="margin-top:15px"><button type="button" class="admin-secondary" data-admin-action="import">Importar los 3 productos de ejemplo</button></div>`;
 }
 function renderSettings(){
+  const mode=settings.whatsappMode==='username'?'username':'number';
   adminContent.innerHTML=`<div class="admin-topline"><h2>WhatsApp de la tienda</h2></div>${adminTabs()}
-    <div class="admin-panel"><h3>Número que recibirá los pedidos</h3><form id="settings-form"><label class="admin-field">WhatsApp (incluye código del país)
-      <input type="tel" name="whatsapp" required inputmode="tel" placeholder="Ejemplo: 51987654321" value="${esc(settings.whatsapp)}">
-      <small>Perú: 51 + 9 dígitos del celular, sin +, espacios ni guiones. Ejemplo ilustrativo, no un número configurado.</small></label>
-      <p class="admin-note">Los botones «Comprar» enviarán al WhatsApp guardado aquí. El mensaje incluye el producto, precio y color seleccionado.</p>
-      <button class="admin-primary" type="submit">Guardar WhatsApp</button><div id="settings-status" aria-live="polite"></div></form></div>`;
+    <div class="admin-panel"><h3>Destino de consultas y pedidos</h3><form id="settings-form">
+      <label class="admin-field">¿Cómo quieres recibir los mensajes?
+        <select name="whatsappMode">
+          <option value="number" ${mode==='number'?'selected':''}>Por número de teléfono (compatible con mensajes preescritos)</option>
+          <option value="username" ${mode==='username'?'selected':''}>Por nombre de usuario de WhatsApp</option>
+        </select>
+      </label>
+      <label class="admin-field" style="margin-top:14px">Número de WhatsApp (recomendado como respaldo)
+        <input type="tel" name="whatsapp" inputmode="tel" autocomplete="off" placeholder="Ejemplo: 51987654321" value="${esc(settings.whatsapp)}">
+        <small>Incluye el código del país, sin + ni espacios. Obligatorio si eliges número.</small>
+      </label>
+      <label class="admin-field" style="margin-top:14px">Usuario de WhatsApp
+        <input type="text" name="whatsappUsername" autocapitalize="off" spellcheck="false" maxlength="41" autocomplete="off" placeholder="@jhonatanbartra" value="${esc(settings.whatsappUsername||'')}">
+        <small>Debe ser tu usuario ACTIVO en WhatsApp; no basta tenerlo reservado ni usar tu nombre de Instagram.</small>
+      </label>
+      <div class="admin-note">Si eliges usuario, los botones intentarán abrir <strong>wa.me/TuUsuario</strong>. Comprueba en tu celular que abre el chat y conserva el mensaje del pedido. Si falla, vuelve al modo por número para no perder consultas.</div>
+      <div class="admin-actions">
+        <button class="admin-primary" type="submit">Guardar WhatsApp</button>
+        <button type="button" class="admin-secondary" data-admin-action="test-wa-username">Probar enlace de usuario</button>
+      </div>
+      <div id="settings-status" aria-live="polite"></div>
+    </form></div>`;
 }
 function clearPhotoPreviews(){editorPhotos.forEach(p=>{if(p.preview?.startsWith('blob:'))URL.revokeObjectURL(p.preview);});}
 function openEditor(id=null){
@@ -389,10 +416,27 @@ async function handleLogin(form){
   }
 }
 async function saveSettings(form){
-  const status=$('settings-status');const digits=form.elements.whatsapp.value.replace(/\D/g,'');
-  if(!/^\d{8,15}$/.test(digits)){status.innerHTML='<p class="admin-error">Ingresa el número internacional completo (entre 8 y 15 dígitos).</p>';return;}
-  try{await sdk.setDoc(sdk.doc(db,'settings','storefront'),{whatsapp:digits,updatedAt:sdk.serverTimestamp()},{merge:true});settings.whatsapp=digits;notify('WhatsApp actualizado.');renderSettings();}
-  catch(e){status.innerHTML=`<p class="admin-error">No se pudo guardar: ${esc(e.code||e.message)}</p>`;}
+  const status=$('settings-status');
+  const mode=form.elements.whatsappMode.value==='username'?'username':'number';
+  const digits=form.elements.whatsapp.value.replace(/\D/g,'');
+  const username=normalizeWhatsAppUsername(form.elements.whatsappUsername.value);
+  if(mode==='number' && !/^\d{8,15}$/.test(digits)){
+    status.innerHTML='<p class="admin-error">Ingresa un número de WhatsApp válido con código de país (8 a 15 dígitos).</p>';return;
+  }
+  if(digits && !/^\d{8,15}$/.test(digits)){
+    status.innerHTML='<p class="admin-error">Corrige el número de respaldo o déjalo vacío.</p>';return;
+  }
+  if(mode==='username' && !validWhatsAppUsername(username)){
+    status.innerHTML='<p class="admin-error">Ingresa un nombre de usuario de WhatsApp válido, por ejemplo @jhonatanbartra.</p>';return;
+  }
+  if(username && !validWhatsAppUsername(username)){
+    status.innerHTML='<p class="admin-error">Revisa el nombre de usuario o deja ese campo vacío.</p>';return;
+  }
+  try{
+    const next={whatsapp:digits,whatsappUsername:username,whatsappMode:mode};
+    await sdk.setDoc(sdk.doc(db,'settings','storefront'),{...next,updatedAt:sdk.serverTimestamp()},{merge:true});
+    settings={...settings,...next};notify('WhatsApp actualizado. Prueba el botón Consultar.');renderSettings();
+  }catch(e){status.innerHTML=`<p class="admin-error">No se pudo guardar: ${esc(e.code||e.message)}</p>`;}
 }
 function parseSpecs(value){return String(value).split(/\r?\n/).map(line=>line.trim()).filter(Boolean).map(line=>{
   const pos=line.indexOf(':');return pos<0?{label:'Detalle',value:line.slice(0,550)}:{label:line.slice(0,pos).trim().slice(0,90)||'Detalle',value:line.slice(pos+1).trim().slice(0,550)};
@@ -624,6 +668,12 @@ adminContent.addEventListener('click', async e=>{
   if(act==='logout'){await sdk.signOut(auth);adminTab='products';return;}
   if(act==='tab-products')return returnToProducts();
   if(act==='tab-settings'){if(saving)return;adminTab='settings';renderAdmin();return;}
+  if(act==='test-wa-username'){
+    const username=normalizeWhatsAppUsername(adminContent.querySelector('[name="whatsappUsername"]')?.value);
+    if(!validWhatsAppUsername(username)){notify('Escribe primero tu usuario de WhatsApp.');return;}
+    window.open(`https://wa.me/${encodeURIComponent(username)}`,'_blank','noopener,noreferrer');
+    return;
+  }
   if(act==='new')return openEditor();
   if(act==='edit')return openEditor(b.dataset.id);
   if(act==='cancel-editor')return cancelEditor();
@@ -683,7 +733,7 @@ async function initFirebase(){
       snap=>{products=snap.docs.map(d=>normalize({id:d.id,...d.data()})).sort((a,b)=>a.name.localeCompare(b.name,'es'));cart=cart.filter(i=>products.some(p=>p.id===i.id));saveCart();renderFeed();},
       err=>{console.error('Firestore productos:',err);notify('No se pudo cargar el catálogo. Revisa Firestore y sus reglas.');});
     unsubscribeLikes=firestore.onSnapshot(firestore.collection(db,'productLikes'), snap=>{likeCounts=new Map(snap.docs.map(d=>[d.id,Math.max(0,Number(d.data().count)||0)]));updateLikeButtons();},err=>console.warn('Contadores:',err));
-    unsubscribeSettings=firestore.onSnapshot(firestore.doc(db,'settings','storefront'),snap=>{settings={whatsapp:snap.exists()?String(snap.data().whatsapp||''):''};},
+    unsubscribeSettings=firestore.onSnapshot(firestore.doc(db,'settings','storefront'),snap=>{const data=snap.exists()?snap.data():{};settings={whatsapp:String(data.whatsapp||''),whatsappUsername:String(data.whatsappUsername||''),whatsappMode:data.whatsappMode==='username'?'username':'number'};},
       err=>console.error('Firestore WhatsApp:',err));
     authMod.onAuthStateChanged(auth,user=>{
       activeUser=user;if(unsubscribeAdmin){unsubscribeAdmin();unsubscribeAdmin=null;}
