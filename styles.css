@@ -297,7 +297,7 @@ html,body{background:#f8fbff}
 .product-gallery-dots {
   position: absolute;
   left: 50%;
-  bottom: -7px;
+  bottom: 38px;
   z-index: 3;
   transform: translateX(-50%);
   display: flex;
@@ -336,7 +336,7 @@ html,body{background:#f8fbff}
   border-radius: 8px;
 }
 @media (max-width: 540px){
-  .product-gallery-dots { bottom: -10px; }
+  .product-gallery-dots { bottom: 46px; }
   .product-gallery-dots .photo-dot { width: 20px; flex-basis: 20px; }
 }
 
