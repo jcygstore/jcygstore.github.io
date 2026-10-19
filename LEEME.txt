@@ -1,0 +1,9 @@
+JCYG STORE · Ajuste moderado de tamaño de fotos
+
+Archivos a subir en la RAÍZ del repositorio:
+- index.html
+- styles.css
+
+Los productos se reducen aprox. 10% respecto a la versión anterior.
+No sustituir app.js, cart-icon.css, assets ni la configuración de Firebase/Cloudinary.
+Conservar Windows Defender activado.
