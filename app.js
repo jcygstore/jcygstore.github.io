@@ -42,7 +42,8 @@ const cartSvg = `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" str
 const detailsSvg = `<svg width="28" height="28" viewBox="0 0 24 24" aria-hidden="true" fill="currentColor"><circle cx="5" cy="12" r="2.05"/><circle cx="12" cy="12" r="2.05"/><circle cx="19" cy="12" r="2.05"/></svg>`;
 const cartPlusSvg = `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2 2h2l2.5 12.5a2 2 0 0 0 2 1.5h10a2 2 0 0 0 2-1.5L22 7H5"/><path d="M16 2v6m-3-3h6" stroke-width="2.3"/></svg>`;
 let sdk = null, db = null, auth = null, activeUser = null;
-let unsubscribePublic = null, unsubscribeAdmin = null, unsubscribeSettings = null;
+let unsubscribePublic = null, unsubscribeAdmin = null, unsubscribeSettings = null, unsubscribeSales = null;
+let sales = [], saleProductId = null, savingSale = false, editingSaleNoteId = null, salesLoadError = false;
 let adminTab = 'products', editId = null, editorColors = [], editorPhotos = [], saving = false;
 let toastTimer = null;
 let lastKnownProductNumber = 0;
@@ -314,12 +315,13 @@ modal.addEventListener('click',e => {
   }
 });
 function openAdmin(){adminOverlay.classList.add('show');adminOverlay.setAttribute('aria-hidden','false');renderAdmin();}
-function closeAdmin(){if(saving)return;adminOverlay.classList.remove('show');adminOverlay.setAttribute('aria-hidden','true');}
+function closeAdmin(){if(saving||savingSale)return;adminOverlay.classList.remove('show');adminOverlay.setAttribute('aria-hidden','true');}
 $('admin-close').addEventListener('click',closeAdmin);
 adminOverlay.addEventListener('click', e => {if(e.target===adminOverlay)closeAdmin();});
 document.addEventListener('keydown',e => {if(e.key==='Escape'){if(adminOverlay.classList.contains('show'))closeAdmin();else closeProduct();}});
 function adminTabs(){return `<div class="admin-tabs">
   <button type="button" data-admin-action="tab-products" class="${adminTab==='products'?'active':''}">Productos</button>
+  <button type="button" data-admin-action="tab-sales" class="${adminTab==='sales'?'active':''}">Ventas</button>
   <button type="button" data-admin-action="tab-settings" class="${adminTab==='settings'?'active':''}">WhatsApp de la tienda</button>
   <button type="button" data-admin-action="logout">Salir de administración</button>
 </div>`;}
@@ -338,13 +340,136 @@ function renderAdmin() {
     adminContent.innerHTML=`<div class="login-wrap"><h2>Cuenta sin permisos</h2><p>El usuario que ingresó no coincide con el UID autorizado en este proyecto.</p><button class="admin-secondary" data-admin-action="logout">Cerrar sesión</button></div>`;return;
   }
   if(adminTab==='editor') {renderEditor();return;}
+  if(adminTab==='sale-editor') {renderSaleEditor();return;}
+  if(adminTab==='sales') {renderSales();return;}
   if(adminTab==='settings') {renderSettings();return;}
   adminContent.innerHTML=`<div class="admin-topline"><div><h2>Productos publicados</h2><p class="muted">Administra el inventario y el catálogo desde aquí.</p></div><button class="admin-primary" data-admin-action="new">＋ Agregar producto</button></div>
     ${adminTabs()}
     <div class="admin-product-list">${adminProducts.length ? adminProducts.map(p=>`<div class="admin-item">
       <img src="${esc(safeImage(p.photos[0]?.url))}" alt="${esc(p.name)}"><div><div class="admin-item-title">${esc(p.name)}</div><div class="admin-item-sub">${esc(p.code)} · ${money(p.price)} · ${unavailable(p)?'AGOTADO':p.stock+' disponibles'} · ${p.photos.length}/10 fotos</div><div class="admin-item-status ${!p.published?'draft':''}">${p.published?'● Publicado':'● Borrador (no visible)'}</div></div>
-      <div class="admin-actions"><button type="button" class="admin-secondary" data-admin-action="edit" data-id="${esc(p.id)}">Editar</button><button type="button" class="admin-danger" data-admin-action="delete" data-id="${esc(p.id)}">Eliminar</button></div>
+      <div class="admin-actions"><button type="button" class="admin-primary admin-sale-button" data-admin-action="new-sale" data-id="${esc(p.id)}" ${p.stock<=0?'disabled title="Sin unidades disponibles"':''}>＋ Venta</button><button type="button" class="admin-secondary" data-admin-action="edit" data-id="${esc(p.id)}">Editar</button><button type="button" class="admin-danger" data-admin-action="delete" data-id="${esc(p.id)}">Eliminar</button></div>
     </div>`).join('') : '<div class="admin-note">Todavía no hay productos publicados. Usa «Agregar producto» para comenzar.</div>'}</div>`;
+}
+// Las ventas se guardan como documentos independientes en settings (sale_*):
+// la colección ya permite escritura solo al administrador con las reglas existentes.
+// Cada registro se crea en la misma transacción que descuenta el stock del producto.
+function saleDate(value){
+  const date=value?.toDate?.();
+  return date instanceof Date && !Number.isNaN(date.getTime()) ? date.toLocaleString('es-PE',{dateStyle:'medium',timeStyle:'short'}) : 'Registrando…';
+}
+function openSaleEditor(id){
+  if(savingSale)return;
+  const p=adminProducts.find(item=>item.id===id);
+  if(!p||p.stock<1){notify('No hay stock disponible para registrar la venta.');return;}
+  saleProductId=id;
+  adminTab='sale-editor';
+  renderAdmin();
+}
+function renderSaleEditor(){
+  const p=adminProducts.find(item=>item.id===saleProductId);
+  if(!p){adminTab='products';renderAdmin();return;}
+  adminContent.innerHTML=`<div class="admin-topline"><h2>Registrar venta</h2><button type="button" class="admin-secondary" data-admin-action="tab-products">← Regresar</button></div>
+    <div class="sale-product-summary"><img src="${esc(safeImage(p.photos[0]?.url))}" alt="${esc(p.name)}"><div><strong>${esc(p.name)}</strong><div class="muted">Código: ${esc(p.code)}</div><div class="muted">${p.stock} unidades disponibles · ${money(p.price)} c/u</div></div></div>
+    <form id="sale-form" class="admin-panel">
+      <div class="editor-grid">
+        <label class="admin-field">Cantidad vendida<input type="number" name="quantity" min="1" max="${p.stock}" step="1" value="1" required></label>
+        <label class="admin-field">Color
+          <select name="color" ${p.colors.length?'required':''}>
+            ${p.colors.length ? `<option value="">Seleccionar color</option>${p.colors.map(c=>`<option value="${esc(c.name)}">${esc(c.name)}</option>`).join('')}` : '<option value="">Sin color especificado</option>'}
+          </select>
+        </label>
+        <label class="admin-field span-all">Observación (opcional)
+          <textarea name="note" maxlength="900" rows="4"></textarea>
+        </label>
+      </div>
+      <div class="sale-preview">Total de la venta: <strong id="sale-total">${money(p.price)}</strong><span id="sale-stock-preview" class="muted">Quedarán ${p.stock-1} disponibles</span></div>
+      <div id="sale-status" class="admin-working" role="status" aria-live="polite"></div>
+      <div class="form-footer"><button class="admin-secondary" type="button" data-admin-action="tab-products">Cancelar</button><button class="admin-primary" id="confirm-sale" type="submit">Registrar venta y descontar stock</button></div>
+    </form>`;
+}
+function updateSalePreview(){
+  const form=adminContent.querySelector('#sale-form');
+  const p=adminProducts.find(item=>item.id===saleProductId);
+  if(!form||!p)return;
+  const qty=Number(form.elements.quantity.value);
+  const valid=Number.isInteger(qty)&&qty>=1&&qty<=p.stock;
+  const total=adminContent.querySelector('#sale-total');
+  const remaining=adminContent.querySelector('#sale-stock-preview');
+  if(total)total.textContent=valid?money(p.price*qty):'—';
+  if(remaining)remaining.textContent=valid?`Quedarán ${p.stock-qty} disponibles`:`Ingresa entre 1 y ${p.stock} unidades`;
+}
+async function registerSale(form){
+  if(savingSale||!isAdmin()||!db||!sdk)return;
+  const p=adminProducts.find(item=>item.id===saleProductId);
+  const status=adminContent.querySelector('#sale-status');
+  if(!p){if(status)status.textContent='El producto ya no está disponible.';return;}
+  const quantity=Number(form.elements.quantity.value);
+  const color=String(form.elements.color.value||'');
+  const note=String(form.elements.note.value||'').trim().slice(0,900);
+  if(!Number.isInteger(quantity)||quantity<1||quantity>p.stock){status.textContent='Ingresa una cantidad válida según el stock.';return;}
+  if(p.colors.length && !p.colors.some(c=>c.name===color)){status.textContent='Selecciona un color del producto.';return;}
+  savingSale=true;
+  const btn=adminContent.querySelector('#confirm-sale');if(btn)btn.disabled=true;
+  status.textContent='Registrando venta…';
+  try{
+    const productRef=sdk.doc(db,'products',p.id);
+    // Cada venta es un documento independiente de settings, accesible solo al administrador.
+    const saleRef=sdk.doc(sdk.collection(db,'settings'));
+    await sdk.runTransaction(db,async tx=>{
+      const snap=await tx.get(productRef);
+      if(!snap.exists())throw Error('El producto fue eliminado.');
+      const data=snap.data();
+      const currentStock=Number(data.stock);
+      if(!Number.isInteger(currentStock)||currentStock<quantity)throw Error('El stock cambió. Actualiza el inventario y vuelve a intentar.');
+      if(Array.isArray(data.colors)&&data.colors.length && !data.colors.some(c=>c.name===color))throw Error('El color ya no está disponible.');
+      const remaining=currentStock-quantity;
+      const unitPrice=Number(data.price)||0;
+      if(unitPrice<=0)throw Error('El precio del producto no es válido.');
+      tx.update(productRef,{stock:remaining,outOfStock:remaining===0||data.outOfStock===true,updatedAt:sdk.serverTimestamp()});
+      tx.set(saleRef,{
+        recordType:'sale',productId:p.id,productCode:String(data.code||p.code||''),
+        productName:String(data.name||p.name||''),color,quantity,
+        unitPrice,total:Number((unitPrice*quantity).toFixed(2)),note,
+        stockBefore:currentStock,stockAfter:remaining,
+        createdAt:sdk.serverTimestamp(),createdBy:activeUser.uid
+      });
+    });
+    saleProductId=null;adminTab='sales';notify('Venta registrada. Stock actualizado.');renderAdmin();
+  }catch(err){
+    console.error('Venta JCYG STORE:',err);
+    status.textContent=err.code==='permission-denied'?'No tienes permisos para registrar ventas en Firestore.':(err.message||'No se pudo registrar la venta.');
+    if(btn)btn.disabled=false;
+  }finally{savingSale=false;}
+}
+function renderSales(){
+  const history=sales.slice().sort((a,b)=>(b.createdAt?.toMillis?.()||0)-(a.createdAt?.toMillis?.()||0));
+  const quantity=history.reduce((sum,item)=>sum+(Number(item.quantity)||0),0);
+  const total=history.reduce((sum,item)=>sum+(Number(item.total)||0),0);
+  adminContent.innerHTML=`<div class="admin-topline"><h2>Ventas realizadas</h2></div>${adminTabs()}
+    <div class="sales-metrics"><div><span>Ventas</span><strong>${history.length}</strong></div><div><span>Unidades vendidas</span><strong>${quantity}</strong></div><div><span>Total registrado</span><strong>${money(total)}</strong></div></div>
+    ${salesLoadError?'<p class="admin-error">No se pudo cargar el historial de ventas. Revisa los permisos de Firestore.</p>':''}
+    <div class="sales-history">${history.length?history.map(item=>`
+      <article class="sale-record"><div class="sale-record-heading"><strong>${esc(item.productName||'Producto eliminado')}</strong><span>${saleDate(item.createdAt)}</span></div>
+        <div class="sale-record-details">${esc(item.productCode)} · ${esc(item.color||'Sin color')} · ${Number(item.quantity)||0} unidad(es) · ${money(item.unitPrice)} c/u</div>
+        <div class="sale-record-amount">Total: <strong>${money(item.total)}</strong></div>
+        ${editingSaleNoteId===item.id?`<form class="sale-note-form" data-sale-id="${esc(item.id)}"><label class="admin-field">Observación<textarea name="note" rows="3" maxlength="900">${esc(item.note||'')}</textarea></label><div class="form-footer"><button type="button" class="admin-secondary" data-admin-action="cancel-note">Cancelar</button><button type="submit" class="admin-primary">Guardar observación</button></div><div class="admin-working" data-note-status></div></form>`:
+        `<p class="sale-note"><b>Observación:</b> ${item.note?esc(item.note):'Sin observación'}</p><button type="button" class="admin-secondary sale-note-edit" data-admin-action="edit-note" data-id="${esc(item.id)}">Editar observación</button>`}
+      </article>`).join(''):'<div class="admin-panel"><p class="muted">Todavía no has registrado ventas. Usa el botón «＋ Venta» junto a un producto.</p></div>'}</div>`;
+}
+async function saveSaleNote(form){
+  if(!isAdmin()||!sdk||!db)return;
+  const id=form.dataset.saleId;
+  if(!sales.some(s=>s.id===id))return;
+  const status=form.querySelector('[data-note-status]');
+  const button=form.querySelector('[type=submit]');
+  const note=String(form.elements.note.value||'').trim().slice(0,900);
+  button.disabled=true;
+  try{
+    await sdk.updateDoc(sdk.doc(db,'settings',id),{note,updatedAt:sdk.serverTimestamp()});
+    editingSaleNoteId=null;
+    notify('Observación actualizada.');
+    renderAdmin();
+  }catch(err){console.error('Observación venta:',err);status.textContent='No se pudo guardar la observación.';button.disabled=false;}
 }
 function renderSettings(){
   const mode=settings.whatsappMode==='username'?'username':'number';
@@ -443,7 +568,7 @@ function addColor(name,hex){
   editorColors.push({name,hex:validColor(hex)});renderSelectedColors();renderEditorPhotos();
 }
 function returnToProducts(){
-  if(saving){notify('Espera a que termine de guardarse el producto.');return;}
+  if(saving||savingSale){notify('Espera a que termine de guardarse el registro.');return;}
   clearPhotoPreviews();editorPhotos=[];editorColors=[];editId=null;editorAutoCode=null;adminTab='products';renderAdmin();
 }
 function cancelEditor(){
@@ -672,7 +797,10 @@ adminContent.addEventListener('submit', async e=>{
   e.preventDefault();if(e.target.id==='login-form')await handleLogin(e.target);
   if(e.target.id==='settings-form')await saveSettings(e.target);
   if(e.target.id==='editor-form')await saveProduct(e.target);
+  if(e.target.id==='sale-form')await registerSale(e.target);
+  if(e.target.classList.contains('sale-note-form'))await saveSaleNote(e.target);
 });
+adminContent.addEventListener('input',e=>{if(e.target.matches('#sale-form [name="quantity"]'))updateSalePreview();});
 adminContent.addEventListener('change',e=>{
   if(e.target.id==='product-photos'){
     const input=e.target;const files=[...input.files];input.value='';
@@ -694,6 +822,10 @@ adminContent.addEventListener('click', async e=>{
   if(act==='close')return closeAdmin();
   if(act==='logout'){await sdk.signOut(auth);adminTab='products';return;}
   if(act==='tab-products')return returnToProducts();
+  if(act==='tab-sales'){if(saving||savingSale)return;editingSaleNoteId=null;adminTab='sales';renderAdmin();return;}
+  if(act==='new-sale')return openSaleEditor(b.dataset.id);
+  if(act==='edit-note'){editingSaleNoteId=b.dataset.id;renderAdmin();return;}
+  if(act==='cancel-note'){editingSaleNoteId=null;renderAdmin();return;}
   if(act==='tab-settings'){if(saving)return;adminTab='settings';renderAdmin();return;}
   if(act==='new')return openEditor();
   if(act==='edit')return openEditor(b.dataset.id);
@@ -736,6 +868,8 @@ async function initFirebase(){
       err=>console.error('Firestore WhatsApp:',err));
     authMod.onAuthStateChanged(auth,user=>{
       activeUser=user;if(unsubscribeAdmin){unsubscribeAdmin();unsubscribeAdmin=null;}
+      if(unsubscribeSales){unsubscribeSales();unsubscribeSales=null;}
+      sales=[];salesLoadError=false;editingSaleNoteId=null;
       if(isAdmin()){
         firestore.getDoc(firestore.doc(db,'settings','productCodes')).then(snap=>{
           lastKnownProductNumber=Math.max(lastKnownProductNumber,Number(snap.data()?.lastNumber)||0);
@@ -745,6 +879,11 @@ async function initFirebase(){
             if(input && input.value===editorAutoCode){input.value=expected;editorAutoCode=expected;}
           }
         }).catch(err=>console.warn('Secuencia de productos:',err));
+        unsubscribeSales=firestore.onSnapshot(
+          firestore.query(firestore.collection(db,'settings'),firestore.where('recordType','==','sale')),
+          snap=>{sales=snap.docs.map(doc=>({id:doc.id,...doc.data()}));salesLoadError=false;if(adminOverlay.classList.contains('show')&&adminTab==='sales'&&!editingSaleNoteId)renderAdmin();},
+          err=>{console.error('Historial de ventas:',err);salesLoadError=true;if(adminTab==='sales')renderAdmin();}
+        );
         unsubscribeAdmin=firestore.onSnapshot(firestore.collection(db,'products'),
           snap=>{adminProducts=snap.docs.map(d=>normalize({id:d.id,...d.data()})).sort((a,b)=>a.name.localeCompare(b.name,'es'));if(adminOverlay.classList.contains('show')&&adminTab==='products')renderAdmin();},
           err=>{console.error('Firestore admin:',err);notify('No puedes leer productos. Revisa el UID y las reglas.');});

@@ -357,3 +357,28 @@ html,body{background:#f8fbff}
     margin-bottom: 7px;
   }
 }
+
+/* JCYG STORE — registro de ventas e historial (solo administrador). */
+.admin-sale-button {white-space:nowrap;}
+.sale-product-summary {display:flex;align-items:center;gap:15px;padding:15px;margin-bottom:16px;background:#fff;border:1px solid #e0e7f3;border-radius:16px;}
+.sale-product-summary img {width:84px;height:78px;object-fit:contain;border-radius:12px;background:#f7f8fe;flex-shrink:0;}
+.sale-product-summary strong{font-size:15px;color:#172747;}
+.sale-product-summary .muted{margin-top:5px;}
+.sale-preview{display:flex;gap:9px 18px;flex-wrap:wrap;align-items:center;justify-content:space-between;border-top:1px solid #e5e9f3;margin-top:18px;padding-top:17px;font-size:14px;font-weight:750;color:#4f607b;}
+.sale-preview strong{font-size:21px;color:#182746;}
+.sales-metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-bottom:19px;}
+.sales-metrics>div{display:flex;flex-direction:column;gap:8px;background:white;border:1px solid #e0e7f3;border-radius:15px;padding:15px;min-width:0;}
+.sales-metrics span{font-size:12px;color:#72829b;font-weight:750;}
+.sales-metrics strong{font-size:clamp(16px,2.8vw,22px);font-weight:900;color:#28375b;overflow-wrap:anywhere;}
+.sales-history{display:grid;gap:12px;}
+.sale-record{padding:17px;background:white;border:1px solid #e0e7f3;border-radius:16px;}
+.sale-record-heading{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap;}
+.sale-record-heading strong{font-size:15px;color:#1d2947;}
+.sale-record-heading span{font-size:11px;color:#73829a;}
+.sale-record-details{margin-top:8px;color:#697991;font-size:12px;line-height:1.55;}
+.sale-record-amount{margin-top:10px;color:#384563;font-size:13px;}
+.sale-record-amount strong{font-size:15px;}
+.sale-note{margin:13px 0 8px;line-height:1.6;font-size:12px;color:#4d607b;white-space:pre-wrap;overflow-wrap:anywhere;}
+.sale-note-edit{padding:8px 12px;font-size:11px;}
+.sale-note-form{margin-top:13px;}
+@media(max-width:620px){.admin-actions{justify-content:flex-start}.sales-metrics{gap:7px}.sales-metrics>div{padding:10px}.sales-metrics span{font-size:10px}.sales-metrics strong{font-size:14px}.sale-preview strong{font-size:18px}.admin-sale-button{flex:0 0 auto}}
