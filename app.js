@@ -117,7 +117,7 @@ function renderFeed() {
       </div>
       <div class="shade"></div>${header()}
       ${firebaseReady ? '' : '<div class="sample-banner">Catálogo de ejemplo · Firebase pendiente</div>'}
-      <div class="info"><div class="eyebrow">JCYG STORE</div><div class="name">${esc(p.name)}</div><div class="product-code">Código: ${esc(p.code)}</div><div class="desc">${esc(p.desc)}</div>
+      <div class="info"><div class="eyebrow">JCYG STORE</div><p class="image-disclaimer">Las imágenes son de carácter ilustrativo y referencial.</p><div class="name">${esc(p.name)}</div><div class="product-code">Código: ${esc(p.code)}</div><div class="desc">${esc(p.desc)}</div>
         <div class="availability"><span class="stock-mini ${p.stock===0?'out':''}">${p.stock ? `${p.stock} disponibles` : 'Agotado'}</span>
           ${p.colors.length ? `<span class="available-colors"><span class="available-colors-label">Colores:</span>${p.colors.map((c,i) => `<button type="button" class="mini-color-btn ${selected===c.name?'selected':''}" style="--c:${validColor(c.hex)}" title="${esc(c.name)}" aria-label="Ver color ${esc(c.name)}" data-action="color" data-color-index="${i}"></button>`).join('')}</span>` : ''}
         </div><div class="price"><span class="currency">Precio</span><strong>${money(p.price)}</strong>${off ? `<del>${money(p.oldPrice)}</del><span class="discount">-${off}%</span>` : ''}</div>

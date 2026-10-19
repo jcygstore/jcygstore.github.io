@@ -339,3 +339,21 @@ html,body{background:#f8fbff}
   .product-gallery-dots { bottom: -10px; }
   .product-gallery-dots .photo-dot { width: 20px; flex-basis: 20px; }
 }
+
+/* Aviso referencial bajo JCYG STORE, en cada ficha de producto. */
+.card .info .image-disclaimer {
+  margin: -3px 0 8px;
+  max-width: 100%;
+  font-size: 10px;
+  line-height: 1.35;
+  font-weight: 600;
+  letter-spacing: 0;
+  color: #64748b;
+  text-transform: none;
+}
+@media (max-width: 540px) {
+  .card .info .image-disclaimer {
+    font-size: 10px;
+    margin-bottom: 7px;
+  }
+}
