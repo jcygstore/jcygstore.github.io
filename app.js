@@ -36,7 +36,7 @@ let likeCounts = new Map(), cart = []; try { cart = JSON.parse(localStorage.getI
 let unsubscribeLikes = null;
 const heartSvg = `<svg width="29" height="29" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.8 4.6a5.4 5.4 0 0 0-7.7 0L12 5.7l-1.1-1.1a5.4 5.4 0 0 0-7.7 7.7l1.1 1.1L12 21l7.7-7.6 1.1-1.1a5.4 5.4 0 0 0 0-7.7Z"/></svg>`;
 const waSvg = `<svg width="29" height="29" viewBox="0 0 32 32" aria-hidden="true" fill="currentColor"><path d="M16 .8A15.2 15.2 0 0 0 2.8 23.5L.9 31l7.7-2a15.2 15.2 0 1 0 7.4-28.2Zm0 27.5c-2.2 0-4.3-.6-6.2-1.7l-.5-.3-4.5 1.2L6 23l-.3-.5a12.3 12.3 0 1 1 10.3 5.8Zm6.8-9.2c-.4-.2-2.3-1.1-2.7-1.3-.4-.1-.6-.2-.9.2s-1 1.3-1.2 1.5c-.2.2-.4.3-.8.1-.4-.2-1.6-.6-3.1-1.9-1.1-1-1.8-2.2-2-2.6-.2-.4 0-.6.1-.8l.6-.7c.2-.2.3-.4.4-.7.1-.2.1-.5 0-.7-.1-.2-.9-2.2-1.2-3-.3-.7-.6-.6-.9-.6h-.8c-.3 0-.7.1-1 .5-.4.4-1.4 1.4-1.4 3.4s1.4 3.9 1.6 4.2c.2.3 2.8 4.3 6.8 6 .9.4 1.7.6 2.2.8.9.3 1.7.2 2.4.1.7-.1 2.3-.9 2.6-1.8.3-.9.3-1.7.2-1.8-.1-.2-.4-.3-.8-.5Z"/></svg>`;
-// Mismo carrito de supermercado en ambas acciones; el signo + identifica «Añadir».
+// Carrito general sin signo +; Añadir al carrito usa el icono con signo +.
 const cartSvg = `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2 2h2l2.5 12.5a2 2 0 0 0 2 1.5h10a2 2 0 0 0 2-1.5L22 7H5"/></svg>`;
 const cartPlusSvg = `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2 2h2l2.5 12.5a2 2 0 0 0 2 1.5h10a2 2 0 0 0 2-1.5L22 7H5"/><path d="M16 2v6m-3-3h6" stroke-width="2.3"/></svg>`;
 let sdk = null, db = null, auth = null, activeUser = null;
@@ -95,7 +95,6 @@ function renderFeed() {
         <button class="act ${likes.has(p.id)?'liked':''}" type="button" data-action="like" aria-label="Me gusta" aria-pressed="${likes.has(p.id)}"><span class="ico heart-ico">${heartSvg}</span><small class="likes-text">${likeCounts.get(p.id)||0}</small></button>
         <button class="act" type="button" data-action="details" aria-label="Ver características"><span class="ico">＋</span><small>Detalles</small></button>
         <button class="act consult-side" type="button" data-action="consult" aria-label="Consultar por WhatsApp"><span class="ico">${waSvg}</span><small>Consultar</small></button>
-        <button class="act buy-side" type="button" data-action="buy" aria-label="Comprar por WhatsApp"><span class="ico">${cartSvg}</span><small>${unavailable(p)?'Avisarme':'Comprar'}</small></button>
         <button class="act cart-side" type="button" data-action="cart-add" aria-label="Añadir al carrito" ${unavailable(p)?'disabled title="Producto agotado"':''}><span class="ico">${cartPlusSvg}</span><small>Añadir</small></button>
       </div></article>`;
   }).join('');
@@ -131,7 +130,6 @@ function renderDetails(p) {
     ${p.colors.length ? `<div class="detail-subtitle">Selecciona un color${selected ? `: ${esc(selected)}` : ''}</div><div class="color-list">${p.colors.map((c,i)=>`<button class="color-choice ${selected===c.name?'selected':''}" type="button" data-detail-action="color" data-color-index="${i}"><i class="color-dot" style="background:${validColor(c.hex)}"></i>${esc(c.name)}</button>`).join('')}</div>` : ''}
     <h3 class="spec-title">Características completas</h3>${specs ? `<div class="detail-specs">${specs}</div>` : '<p class="muted">Consulta las características por WhatsApp.</p>'}
     <button type="button" class="primary whatsapp" data-detail-action="consult">${waSvg} Consultar por WhatsApp</button>
-    <button type="button" class="primary purchase-detail-btn" data-detail-action="buy">${cartSvg} ${unavailable(p)?'Avísame cuando esté disponible':'Comprar'}</button>
     ${!unavailable(p)?`<button type="button" class="primary cart-detail-btn" data-detail-action="cart-add">${cartPlusSvg} Añadir al carrito</button>`:''}
     <div class="notice">Confirma disponibilidad, precio y entrega con la tienda.</div></div>`;
 }
@@ -156,13 +154,6 @@ function consultProduct(id){
   waLink(unavailable(p)
     ? `Hola, me interesa ${label}, pero está agotado. ¿Podrían avisarme cuando esté disponible?`
     : `Hola, quisiera consultar por ${label}. ¿Me brindan más información?`);
-}
-function buyProduct(id){
-  const p=getProduct(id);if(!p)return;
-  const label=productLabel(p);
-  waLink(unavailable(p)
-    ? `Hola, quiero comprar ${label}, pero aparece agotado. ¿Me pueden avisar cuando vuelva a estar disponible?`
-    : `Hola, quiero comprar ${label}. Precio publicado: ${money(p.price)}. ¿Me confirman disponibilidad y entrega?`);
 }
 function cartTotal(){return cart.reduce((n,item)=>n+item.qty,0);}
 function saveCart(){localStorage.setItem('jcyg_cart_v2',JSON.stringify(cart));updateCartBadges();}
@@ -224,7 +215,6 @@ feed.addEventListener('click',(e) => {
   const id = card.dataset.id, action = btn.dataset.action;
   if(action==='like') toggleLike(id);
   if(action==='details') openProduct(id);
-  if(action==='buy') buyProduct(id);
   if(action==='consult') consultProduct(id);
   if(action==='cart-add') addToCart(id);
   if(action==='color') {const p=getProduct(id);const c=p?.colors[Number(btn.dataset.colorIndex)];if(c)chooseColor(id,c.name);}
@@ -243,7 +233,6 @@ modal.addEventListener('click',e => {
   const b=e.target.closest('[data-detail-action]'); if(!b) return;
   const p=getProduct(currentId);if(!p)return;
   if(b.dataset.detailAction==='close') closeProduct();
-  if(b.dataset.detailAction==='buy') buyProduct(p.id);
   if(b.dataset.detailAction==='consult') consultProduct(p.id);
   if(b.dataset.detailAction==='cart-add'){addToCart(p.id);}
   if(b.dataset.detailAction==='color') {const c=p.colors[Number(b.dataset.colorIndex)];if(c)chooseColor(p.id,c.name);}
