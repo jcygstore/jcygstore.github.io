@@ -45,6 +45,7 @@ let sdk = null, db = null, auth = null, activeUser = null;
 let unsubscribePublic = null, unsubscribeAdmin = null, unsubscribeSettings = null, unsubscribeSales = null;
 let sales = [], saleProductId = null, savingSale = false, editingSaleNoteId = null, salesLoadError = false;
 let adminTab = 'products', editId = null, editorColors = [], editorPhotos = [], saving = false;
+let editorColorStockMode = false, editorOpeningStock = null;
 let toastTimer = null;
 let lastKnownProductNumber = 0;
 let editorAutoCode = null;
@@ -87,12 +88,24 @@ const normalize = (doc) => ({
   ...doc, id:String(doc.id), name:String(doc.name || 'Producto sin nombre'), desc:String(doc.desc || ''),
   stock:Math.max(0,Math.floor(Number(doc.stock) || 0)), price:Number(doc.price) || 0,
   oldPrice:Number(doc.oldPrice) || 0, published:doc.published !== false, outOfStock:Boolean(doc.outOfStock) || Number(doc.stock)===0, code:String(doc.code||'Sin asignar'),
-  colors:Array.isArray(doc.colors) ? doc.colors.map(c => ({name:String(c.name || '').slice(0,35),hex:validColor(c.hex)})) : [],
+  stockByColor:doc.stockByColor === true,
+  colors:Array.isArray(doc.colors) ? doc.colors.map(c => ({name:String(c.name || '').slice(0,35),hex:validColor(c.hex),qty:Math.max(0,Math.floor(Number(c.qty)||0))})) : [],
   photos:Array.isArray(doc.photos) ? doc.photos.slice(0,10).map(p => ({url:safeImage(p.url),path:String(p.path || ''),color:String(p.color || '')})) : [],
   specs:Array.isArray(doc.specs) ? doc.specs.map(s => ({label:String(s.label || 'Detalle'),value:String(s.value || '')})) : []
 });
 const getProduct = id => products.find(p => p.id === id);
-const selection = p => chosenColors.get(p.id) || '';
+const selection = p => {
+  const selected=chosenColors.get(p.id) || '';
+  if(p.stockByColor && p.colors.length){
+    const match=p.colors.find(c=>c.name===selected && c.qty>0);
+    return match ? match.name : (p.colors.find(c=>c.qty>0)?.name||'');
+  }
+  return selected;
+};
+const colorAvailability = (p,color) => p.stockByColor && p.colors.length
+  ? Math.max(0,Number(p.colors.find(c=>c.name===color)?.qty)||0)
+  : Math.max(0,Number(p.stock)||0);
+const colorSoldOut = (p,c) => p.stockByColor && c.qty<=0;
 function photoForColor(p, color) { return p.photos.find(ph => ph.color === color && color)?.url || p.photos[0]?.url || blankPhoto; }
 const unavailable = p => p.outOfStock || p.stock<=0;
 const discount = p => p.oldPrice > p.price && p.price > 0 ? Math.round((1-p.price/p.oldPrice)*100) : 0;
@@ -120,7 +133,7 @@ function renderFeed() {
       ${firebaseReady ? '' : '<div class="sample-banner">Catálogo de ejemplo · Firebase pendiente</div>'}
       <div class="info"><div class="eyebrow">JCYG STORE</div><p class="image-disclaimer">Las imágenes son de carácter ilustrativo y referencial.</p><div class="name">${esc(p.name)}</div><div class="product-code">Código: ${esc(p.code)}</div><div class="desc">${esc(p.desc)}</div>
         <div class="availability"><span class="stock-mini ${p.stock===0?'out':''}">${p.stock ? `${p.stock} disponibles` : 'Agotado'}</span>
-          ${p.colors.length ? `<span class="available-colors"><span class="available-colors-label">Colores:</span>${p.colors.map((c,i) => `<button type="button" class="mini-color-btn ${selected===c.name?'selected':''}" style="--c:${validColor(c.hex)}" title="${esc(c.name)}" aria-label="Ver color ${esc(c.name)}" data-action="color" data-color-index="${i}"></button>`).join('')}</span>` : ''}
+          ${p.colors.length ? `<span class="available-colors"><span class="available-colors-label">Colores:</span>${p.colors.map((c,i) => `<button type="button" class="mini-color-btn ${selected===c.name?'selected':''}" style="--c:${validColor(c.hex)}" title="${esc(c.name)}${colorSoldOut(p,c)?' (agotado)':(p.stockByColor?' · '+c.qty+' disponibles':'')}" aria-label="Ver color ${esc(c.name)}" data-action="color" data-color-index="${i}" ${colorSoldOut(p,c)?'disabled':''}></button>`).join('')}</span>` : ''}
         </div><div class="price"><span class="currency">Precio</span><strong>${money(p.price)}</strong>${off ? `<del>${money(p.oldPrice)}</del><span class="discount">-${off}%</span>` : ''}</div>
       </div><div class="actions">
         <button class="act ${likes.has(p.id)?'liked':''}" type="button" data-action="like" aria-label="Me gusta" aria-pressed="${likes.has(p.id)}"><span class="ico heart-ico">${heartSvg}</span><small class="likes-text">${likeCounts.get(p.id)||0}</small></button>
@@ -168,7 +181,7 @@ feed.addEventListener('scroll',event=>{
   updateGalleryDots(gallery.closest('.card'),Math.round(gallery.scrollLeft/gallery.clientWidth));
 },true);
 function chooseColor(id, color) {
-  const p = getProduct(id); if(!p || !p.colors.some(c => c.name===color)) return;
+  const p = getProduct(id); if(!p || !p.colors.some(c => c.name===color && !colorSoldOut(p,c))) return;
   chosenColors.set(id,color);
   const card = [...feed.querySelectorAll('.card')].find(c => c.dataset.id === id);
   if(card) {
@@ -190,7 +203,7 @@ function renderDetails(p) {
     <div class="detail-price"><span class="p">${money(p.price)}</span>${discount(p) ? `<del>${money(p.oldPrice)}</del><span class="discount">-${discount(p)}%</span>` : ''}</div>
     <div class="stock-line"><span class="stock-badge ${p.stock===0?'out':''}">${p.stock ? `${p.stock} disponibles` : 'Agotado'}</span></div>
     <p class="detail-desc">${esc(p.desc)}</p>
-    ${p.colors.length ? `<div class="detail-subtitle">Selecciona un color${selected ? `: ${esc(selected)}` : ''}</div><div class="color-list">${p.colors.map((c,i)=>`<button class="color-choice ${selected===c.name?'selected':''}" type="button" data-detail-action="color" data-color-index="${i}"><i class="color-dot" style="background:${validColor(c.hex)}"></i>${esc(c.name)}</button>`).join('')}</div>` : ''}
+    ${p.colors.length ? `<div class="detail-subtitle">Selecciona un color${selected ? `: ${esc(selected)}` : ''}</div><div class="color-list">${p.colors.map((c,i)=>`<button class="color-choice ${selected===c.name?'selected':''}" type="button" data-detail-action="color" data-color-index="${i}" ${colorSoldOut(p,c)?'disabled title="Color agotado"':''}><i class="color-dot" style="background:${validColor(c.hex)}"></i>${esc(c.name)}</button>`).join('')}</div>` : ''}
     <h3 class="spec-title">Características completas</h3>${specs ? `<div class="detail-specs">${specs}</div>` : '<p class="muted">Consulta las características por WhatsApp.</p>'}
     <button type="button" class="primary whatsapp" data-detail-action="consult">${waSvg} Consultar por WhatsApp</button>
     ${!unavailable(p)?`<button type="button" class="primary cart-detail-btn" data-detail-action="cart-add">${cartPlusSvg} Añadir al carrito</button>`:''}
@@ -233,21 +246,25 @@ function updateCartBadges(){document.querySelectorAll('.cart-count').forEach(el=
 function addToCart(id){
   const p=getProduct(id);if(!p)return;if(unavailable(p)){notify('Producto agotado. Usa WhatsApp para pedir un aviso.');return;}
   const color=selection(p), item=cart.find(i=>i.id===id&&i.color===color);
+  if(p.stockByColor && !color){notify('Selecciona un color disponible.');return;}
   const selectedQty=cart.filter(i=>i.id===id).reduce((a,i)=>a+i.qty,0);
-  if(selectedQty>=p.stock){notify('No hay más unidades disponibles para agregar.');return;}
+  const selectedColorQty=cart.filter(i=>i.id===id&&i.color===color).reduce((a,i)=>a+i.qty,0);
+  if(selectedQty>=p.stock || selectedColorQty>=colorAvailability(p,color)){
+    notify('No hay más unidades disponibles de ese color.');return;
+  }
   if(item)item.qty++;else cart.push({id,color,qty:1});
   saveCart();notify('Producto agregado al carrito.');
 }
 function cartPanel(){
   // El carrito solo guarda IDs, colores y unidades; siempre relee los datos actuales del catálogo.
   cart=cart.filter(i=>getProduct(i.id));saveCart();
-  const rows=cart.map((item,i)=>{const p=getProduct(item.id);return `<div class="cart-row"><img src="${esc(safeImage(photoForColor(p,item.color)))}" alt=""><div class="cart-row-main"><b>${esc(p.name)}</b><small>${esc(p.code)}${item.color?' · '+esc(item.color):''}</small><span>${money(p.price)} × ${item.qty}</span>${unavailable(p)?'<em>Agotado: no se incluirá en la compra</em>':''}</div><div class="cart-controls"><button type="button" data-cart="minus" data-index="${i}" aria-label="Disminuir">−</button><b>${item.qty}</b><button type="button" data-cart="plus" data-index="${i}" aria-label="Aumentar">+</button><button type="button" data-cart="remove" data-index="${i}" aria-label="Quitar">✕</button></div></div>`}).join('');
-  const total=cart.reduce((n,i)=>{const p=getProduct(i.id);return n+(!unavailable(p)?p.price*i.qty:0)},0);
-  sheet.innerHTML=`<div class="detail-wrap cart-panel"><button class="close" type="button" data-cart="close">✕</button><h2>Tu carrito</h2><p class="muted">${cartTotal()} unidades agregadas</p>${rows||'<p class="muted">Todavía no agregaste productos.</p>'}<div class="cart-total"><b>Total estimado</b><b>${money(total)}</b></div><button type="button" class="primary whatsapp" data-cart="checkout" ${!cart.some(i=>!unavailable(getProduct(i.id)))?'disabled':''}>${waSvg} Enviar pedido por WhatsApp</button><p class="notice">El pedido se enviará por WhatsApp. No se cobra ni se reserva stock automáticamente.</p></div>`;
+  const rows=cart.map((item,i)=>{const p=getProduct(item.id);return `<div class="cart-row"><img src="${esc(safeImage(photoForColor(p,item.color)))}" alt=""><div class="cart-row-main"><b>${esc(p.name)}</b><small>${esc(p.code)}${item.color?' · '+esc(item.color):''}</small><span>${money(p.price)} × ${item.qty}</span>${unavailable(p)||item.qty>colorAvailability(p,item.color)?'<em>Stock insuficiente: revisa la cantidad antes de enviar el pedido</em>':''}</div><div class="cart-controls"><button type="button" data-cart="minus" data-index="${i}" aria-label="Disminuir">−</button><b>${item.qty}</b><button type="button" data-cart="plus" data-index="${i}" aria-label="Aumentar">+</button><button type="button" data-cart="remove" data-index="${i}" aria-label="Quitar">✕</button></div></div>`}).join('');
+  const total=cart.reduce((n,i)=>{const p=getProduct(i.id);return n+(!unavailable(p)&&i.qty<=colorAvailability(p,i.color)?p.price*i.qty:0)},0);
+  sheet.innerHTML=`<div class="detail-wrap cart-panel"><button class="close" type="button" data-cart="close">✕</button><h2>Tu carrito</h2><p class="muted">${cartTotal()} unidades agregadas</p>${rows||'<p class="muted">Todavía no agregaste productos.</p>'}<div class="cart-total"><b>Total estimado</b><b>${money(total)}</b></div><button type="button" class="primary whatsapp" data-cart="checkout" ${!cart.some(i=>{const p=getProduct(i.id);return p&&!unavailable(p)&&i.qty<=colorAvailability(p,i.color);})?'disabled':''}>${waSvg} Enviar pedido por WhatsApp</button><p class="notice">El pedido se enviará por WhatsApp. No se cobra ni se reserva stock automáticamente.</p></div>`;
   modal.classList.add('show');modal.setAttribute('aria-hidden','false');currentId=null;
 }
 function checkoutCart(){
-  const items=cart.map(i=>({...i,product:getProduct(i.id)})).filter(i=>i.product&&!unavailable(i.product));
+  const items=cart.map(i=>({...i,product:getProduct(i.id)})).filter(i=>i.product&&!unavailable(i.product)&&i.qty<=colorAvailability(i.product,i.color));
   if(!items.length){notify('No hay productos disponibles en tu carrito.');return;}
   const total=items.reduce((n,i)=>n+i.product.price*i.qty,0);
   const lines=items.map((i,k)=>`${k+1}. ${i.product.name} | Código: ${i.product.code}${i.color?' | Color: '+i.color:''} | Cantidad: ${i.qty} | Subtotal: ${money(i.product.price*i.qty)}`);
@@ -300,7 +317,7 @@ modal.addEventListener('click',e => {
     if(action==='close')closeProduct();
     if(action==='checkout')checkoutCart();
     if(item){if(action==='remove')cart.splice(index,1);if(action==='minus'){item.qty--;if(item.qty<=0)cart.splice(index,1);}
-      if(action==='plus'){const p=getProduct(item.id),sum=cart.filter(i=>i.id===item.id).reduce((n,i)=>n+i.qty,0);if(!unavailable(p)&&sum<p.stock)item.qty++;else notify('Stock máximo alcanzado.');}
+      if(action==='plus'){const p=getProduct(item.id),sum=cart.filter(i=>i.id===item.id).reduce((n,i)=>n+i.qty,0);if(!unavailable(p)&&sum<p.stock && item.qty<colorAvailability(p,item.color))item.qty++;else notify('Stock máximo alcanzado para ese color.');}
       saveCart();cartPanel();}return;
   }
   const b=e.target.closest('[data-detail-action]'); if(!b) return;
@@ -347,7 +364,7 @@ function renderAdmin() {
     ${adminTabs()}
     <div class="admin-product-list">${adminProducts.length ? adminProducts.map(p=>`<div class="admin-item">
       <img src="${esc(safeImage(p.photos[0]?.url))}" alt="${esc(p.name)}"><div><div class="admin-item-title">${esc(p.name)}</div><div class="admin-item-sub">${esc(p.code)} · ${money(p.price)} · ${unavailable(p)?'AGOTADO':p.stock+' disponibles'} · ${p.photos.length}/10 fotos</div><div class="admin-item-status ${!p.published?'draft':''}">${p.published?'● Publicado':'● Borrador (no visible)'}</div></div>
-      <div class="admin-actions"><button type="button" class="admin-primary admin-sale-button" data-admin-action="new-sale" data-id="${esc(p.id)}" ${p.stock<=0?'disabled title="Sin unidades disponibles"':''}>＋ Venta</button><button type="button" class="admin-secondary" data-admin-action="edit" data-id="${esc(p.id)}">Editar</button><button type="button" class="admin-danger" data-admin-action="delete" data-id="${esc(p.id)}">Eliminar</button></div>
+      <div class="admin-actions"><button type="button" class="admin-secondary" data-admin-action="edit" data-id="${esc(p.id)}">Editar</button><button type="button" class="admin-danger" data-admin-action="delete" data-id="${esc(p.id)}">Eliminar</button><button type="button" class="admin-primary admin-sale-button" data-admin-action="new-sale" data-id="${esc(p.id)}" ${p.stock<=0?'disabled title="Sin unidades disponibles"':''}>＋ Venta</button></div>
     </div>`).join('') : '<div class="admin-note">Todavía no hay productos publicados. Usa «Agregar producto» para comenzar.</div>'}</div>`;
 }
 // Las ventas se guardan como documentos independientes en settings (sale_*):
@@ -375,7 +392,7 @@ function renderSaleEditor(){
         <label class="admin-field">Cantidad vendida<input type="number" name="quantity" min="1" max="${p.stock}" step="1" value="1" required></label>
         <label class="admin-field">Color
           <select name="color" ${p.colors.length?'required':''}>
-            ${p.colors.length ? `<option value="">Seleccionar color</option>${p.colors.map(c=>`<option value="${esc(c.name)}">${esc(c.name)}</option>`).join('')}` : '<option value="">Sin color especificado</option>'}
+            ${p.colors.length ? `<option value="">Seleccionar color</option>${p.colors.map(c=>`<option value="${esc(c.name)}" ${colorSoldOut(p,c)?'disabled':''}>${esc(c.name)}${p.stockByColor?' · '+c.qty+' disponibles':''}</option>`).join('')}` : '<option value="">Sin color especificado</option>'}
           </select>
         </label>
         <label class="admin-field span-all">Observación (opcional)
@@ -392,11 +409,13 @@ function updateSalePreview(){
   const p=adminProducts.find(item=>item.id===saleProductId);
   if(!form||!p)return;
   const qty=Number(form.elements.quantity.value);
-  const valid=Number.isInteger(qty)&&qty>=1&&qty<=p.stock;
+  const color=form.elements.color.value;
+  const available=colorAvailability(p,color);
+  const valid=Number.isInteger(qty)&&qty>=1&&qty<=p.stock&&(!p.stockByColor||qty<=available);
   const total=adminContent.querySelector('#sale-total');
   const remaining=adminContent.querySelector('#sale-stock-preview');
   if(total)total.textContent=valid?money(p.price*qty):'—';
-  if(remaining)remaining.textContent=valid?`Quedarán ${p.stock-qty} disponibles`:`Ingresa entre 1 y ${p.stock} unidades`;
+  if(remaining)remaining.textContent=valid?`Quedarán ${p.stock-qty} disponibles${p.stockByColor?' · '+(available-qty)+' del color '+color:''}`:`Selecciona un color con stock suficiente (máx. ${p.stock})`;
 }
 async function registerSale(form){
   if(savingSale||!isAdmin()||!db||!sdk)return;
@@ -408,6 +427,7 @@ async function registerSale(form){
   const note=String(form.elements.note.value||'').trim().slice(0,900);
   if(!Number.isInteger(quantity)||quantity<1||quantity>p.stock){status.textContent='Ingresa una cantidad válida según el stock.';return;}
   if(p.colors.length && !p.colors.some(c=>c.name===color)){status.textContent='Selecciona un color del producto.';return;}
+  if(p.stockByColor && quantity>colorAvailability(p,color)){status.textContent='No hay suficientes unidades de ese color.';return;}
   savingSale=true;
   const btn=adminContent.querySelector('#confirm-sale');if(btn)btn.disabled=true;
   status.textContent='Registrando venta…';
@@ -422,10 +442,17 @@ async function registerSale(form){
       const currentStock=Number(data.stock);
       if(!Number.isInteger(currentStock)||currentStock<quantity)throw Error('El stock cambió. Actualiza el inventario y vuelve a intentar.');
       if(Array.isArray(data.colors)&&data.colors.length && !data.colors.some(c=>c.name===color))throw Error('El color ya no está disponible.');
+      let colorsAfter=null;
+      if(data.stockByColor===true){
+        const chosen=(data.colors||[]).find(c=>c.name===color);
+        if(!chosen || !Number.isInteger(Number(chosen.qty)) || Number(chosen.qty)<quantity)
+          throw Error('El stock de ese color cambió. Actualiza e inténtalo nuevamente.');
+        colorsAfter=data.colors.map(c=>c.name===color?{...c,qty:Number(c.qty)-quantity}:c);
+      }
       const remaining=currentStock-quantity;
       const unitPrice=Number(data.price)||0;
       if(unitPrice<=0)throw Error('El precio del producto no es válido.');
-      tx.update(productRef,{stock:remaining,outOfStock:remaining===0||data.outOfStock===true,updatedAt:sdk.serverTimestamp()});
+      tx.update(productRef,{stock:remaining,...(colorsAfter?{colors:colorsAfter}:{}),outOfStock:remaining===0||data.outOfStock===true,updatedAt:sdk.serverTimestamp()});
       tx.set(saleRef,{
         recordType:'sale',productId:p.id,productCode:String(data.code||p.code||''),
         productName:String(data.name||p.name||''),color,quantity,
@@ -507,6 +534,8 @@ function renderSettings(){
 function clearPhotoPreviews(){editorPhotos.forEach(p=>{if(p.preview?.startsWith('blob:'))URL.revokeObjectURL(p.preview);});}
 function openEditor(id=null){
   clearPhotoPreviews();editId=id;adminTab='editor';const existing=adminProducts.find(p=>p.id===id);
+  editorColorStockMode=existing ? existing.stockByColor : true;
+  editorOpeningStock=existing ? existing.stock : null;
   editorColors=existing ? existing.colors.map(c=>({...c})) : [];
   editorPhotos=existing ? existing.photos.map((p,i)=>({...p,id:`saved-${i}`,file:null,preview:p.url})) : [];
   editorAutoCode=null;
@@ -524,11 +553,15 @@ function renderEditor(){
       <label class="admin-field span-all">Descripción breve<textarea name="desc" maxlength="500" rows="3">${esc(p?.desc||'')}</textarea></label>
       <label class="admin-field">Precio actual (S/)<input type="number" name="price" required min="0.01" step="0.01" value="${p?.price||''}"></label>
       <label class="admin-field">Precio anterior (opcional)<input type="number" name="oldPrice" min="0" step="0.01" value="${p?.oldPrice||''}"></label>
-      <label class="admin-field">Cantidad disponible<input type="number" name="stock" required min="0" step="1" value="${p?.stock ?? ''}"></label>
+      <label class="admin-field">Cantidad disponible
+        <input type="number" name="stock" required min="0" step="1" value="${editorColorStockMode?editorColors.reduce((n,c)=>n+Math.max(0,Number(c.qty)||0),0):(p?.stock ?? '')}" ${editorColorStockMode?'readonly':''}>
+      </label>
       <label class="admin-field">Disponibilidad<select name="outOfStock"><option value="false" ${!p?.outOfStock?'selected':''}>Disponible según stock</option><option value="true" ${p?.outOfStock?'selected':''}>Agotado (stock 0 y permitir aviso por WhatsApp)</option></select></label>
       <label class="admin-field">Estado<select name="published"><option value="true" ${p?.published!==false?'selected':''}>Publicado (visible)</option><option value="false" ${p?.published===false?'selected':''}>Borrador (oculto)</option></select></label>
     </div></div>
     <div class="admin-panel"><h3>Colores del producto</h3>
+      ${!editorColorStockMode?'<button type="button" class="admin-secondary color-track-toggle" data-admin-action="enable-color-stock">Distribuir stock por colores</button>':''}
+      ${editorColorStockMode?'<p class="color-stock-help">Cada toque en un color agrega 1 unidad. Usa − para descontar y ＋ para aumentar.</p>':''}
       <div id="selected-colors" class="selected-colors"></div><div id="color-palette" class="color-palette"></div>
       <div class="custom-color-row"><label class="admin-field">Color personalizado<input name="customColorName" maxlength="35"></label>
         <label class="admin-field">Tono<input name="customColorHex" type="color" value="#2563eb"></label>
@@ -552,8 +585,11 @@ function renderEditor(){
 }
 function renderSelectedColors(){
   const selected=$('selected-colors'),palette=$('color-palette');if(!selected||!palette)return;
-  selected.innerHTML=editorColors.length ? editorColors.map((c,i)=>`<span class="selected-color"><i class="color-dot" style="background:${validColor(c.hex)}"></i>${esc(c.name)}<button type="button" data-admin-action="remove-color" data-index="${i}" aria-label="Eliminar color ${esc(c.name)}">✕</button></span>`).join('') : '';
-  palette.innerHTML=PALETTE.map(([name,hex])=>`<button type="button" class="palette-choice" data-admin-action="add-color" data-color-name="${esc(name)}" ${editorColors.some(c=>c.name.toLowerCase()===name.toLowerCase())?'disabled':''}><span class="color-dot" style="background:${hex}"></span>${esc(name)}</button>`).join('');
+  selected.innerHTML=editorColors.length ? editorColors.map((c,i)=>`<span class="selected-color"><i class="color-dot" style="background:${validColor(c.hex)}"></i>${esc(c.name)}
+    ${editorColorStockMode?`<button type="button" class="color-qty-step" data-admin-action="decrease-color" data-index="${i}" aria-label="Restar una unidad de ${esc(c.name)}">−</button><b class="color-qty">${c.qty||0}</b><button type="button" class="color-qty-step" data-admin-action="increase-color" data-index="${i}" aria-label="Añadir una unidad de ${esc(c.name)}">＋</button>`:''}
+    <button type="button" data-admin-action="remove-color" data-index="${i}" aria-label="Eliminar color ${esc(c.name)}">✕</button></span>`).join('') : '';
+  palette.innerHTML=PALETTE.map(([name,hex])=>`<button type="button" class="palette-choice" data-admin-action="add-color" data-color-name="${esc(name)}" ${!editorColorStockMode&&editorColors.some(c=>c.name.toLowerCase()===name.toLowerCase())?'disabled':''}><span class="color-dot" style="background:${hex}"></span>${esc(name)}</button>`).join('');
+  syncEditorStock();
 }
 function renderEditorPhotos(){
   const wrap=$('editor-photos');if(!wrap)return;
@@ -562,14 +598,27 @@ function renderEditorPhotos(){
     ${editorColors.map(c=>`<option value="${esc(c.name)}" ${ph.color===c.name?'selected':''}>${esc(c.name)}</option>`).join('')}</select>
     <button type="button" data-admin-action="remove-photo" data-photo-id="${esc(ph.id)}">✕ Quitar foto</button></div>`).join('') : '';
 }
+function syncEditorStock(){
+  const field=adminContent.querySelector('#editor-form [name="stock"]');
+  if(field && editorColorStockMode){
+    const count=editorColors.reduce((n,c)=>n+Math.max(0,Number(c.qty)||0),0);
+    field.value=String(count);
+    const availability=adminContent.querySelector('#editor-form [name="outOfStock"]');
+    if(count>0 && availability?.value==='true')availability.value='false';
+  }
+}
 function addColor(name,hex){
   name=String(name||'').trim().slice(0,35);if(!name)return notify('Escribe el nombre del color.');
-  if(editorColors.some(c=>c.name.toLowerCase()===name.toLowerCase()))return notify('Ese color ya está agregado.');
-  editorColors.push({name,hex:validColor(hex)});renderSelectedColors();renderEditorPhotos();
+  const existing=editorColors.find(c=>c.name.toLowerCase()===name.toLowerCase());
+  if(existing){
+    if(!editorColorStockMode)return notify('Ese color ya está agregado.');
+    existing.qty=Math.min(99999,(existing.qty||0)+1);
+  }else editorColors.push({name,hex:validColor(hex),qty:editorColorStockMode?1:0});
+  renderSelectedColors();renderEditorPhotos();
 }
 function returnToProducts(){
   if(saving||savingSale){notify('Espera a que termine de guardarse el registro.');return;}
-  clearPhotoPreviews();editorPhotos=[];editorColors=[];editId=null;editorAutoCode=null;adminTab='products';renderAdmin();
+  clearPhotoPreviews();editorPhotos=[];editorColors=[];editorColorStockMode=false;editorOpeningStock=null;editId=null;editorAutoCode=null;adminTab='products';renderAdmin();
 }
 function cancelEditor(){
   // Cancelar descarta únicamente los cambios locales; no borra fotos ya publicadas.
@@ -724,7 +773,8 @@ async function saveProduct(form){
   if(saving)return;
   const status=$('save-status');const current=adminProducts.find(x=>x.id===editId);
   const name=form.elements.name.value.trim(),desc=form.elements.desc.value.trim();
-  const price=Number(form.elements.price.value),oldPrice=Number(form.elements.oldPrice.value||0),outOfStock=form.elements.outOfStock.value==='true',stock=outOfStock?0:Number(form.elements.stock.value),code=form.elements.code.value.trim().toUpperCase();
+  const price=Number(form.elements.price.value),oldPrice=Number(form.elements.oldPrice.value||0),outOfStock=form.elements.outOfStock.value==='true',
+    stock=outOfStock?0:(editorColorStockMode?editorColors.reduce((n,c)=>n+Math.max(0,Math.floor(Number(c.qty)||0)),0):Number(form.elements.stock.value)),code=form.elements.code.value.trim().toUpperCase();
   if(!name || !Number.isFinite(price) || price<=0 || !Number.isInteger(stock) || stock<0){status.textContent='Revisa nombre, precio y cantidad disponible.';return;}
   if((code || current) && (!CODE_PATTERN.test(code) || numberFromCode(code)===0)){status.textContent='El código debe comenzar con JS- seguido de cuatro números.';return;}
   if(adminProducts.some(p=>p.id!==editId&&p.code.toUpperCase()===code) && (current || code!==editorAutoCode)){status.textContent='Ya existe un producto con ese código.';return;}
@@ -760,12 +810,18 @@ async function saveProduct(form){
       } else photos.push({url:pic.url,path:pic.path||'',color:pic.color||''});
     }
     status.textContent='Guardando producto en Firebase Firestore…';
-    const payload={name,code,desc,price,oldPrice,stock,outOfStock,published:form.elements.published.value==='true',
-      colors:editorColors.map(c=>({...c})),photos,specs:parseSpecs(form.elements.specs.value),updatedAt:sdk.serverTimestamp()};
+    const payload={name,code,desc,price,oldPrice,stock,outOfStock,stockByColor:editorColorStockMode,published:form.elements.published.value==='true',
+      colors:editorColors.map(c=>({name:c.name,hex:c.hex,qty:editorColorStockMode?(outOfStock?0:Math.max(0,Math.floor(Number(c.qty)||0))):0})),photos,specs:parseSpecs(form.elements.specs.value),updatedAt:sdk.serverTimestamp()};
     // La secuencia se guarda en Firestore para no reutilizar códigos tras eliminar productos.
     const seqRef=sdk.doc(db,'settings','productCodes');
     await sdk.runTransaction(db,async transaction=>{
       const seqSnap=await transaction.get(seqRef);
+      if(current){
+        const serverProduct=await transaction.get(productRef);
+        if(!serverProduct.exists())throw Error('Este producto ya no existe.');
+        if(Number(serverProduct.data().stock)!==editorOpeningStock)
+          throw Error('El stock cambió mientras editabas. Vuelve a abrir el producto para evitar perder una venta.');
+      }
       const last=seqSnap.exists()?Number(seqSnap.data().lastNumber)||0:0;
       const currentMax=Math.max(last,lastKnownProductNumber,...adminProducts.map(p=>numberFromCode(p.code)),0);
       let number=numberFromCode(code);
@@ -786,7 +842,7 @@ async function saveProduct(form){
     for(const path of uploadedPaths)await removeCloudinaryPhoto(path);
   }finally{saving=false;const btn=$('save-product');if(btn)btn.disabled=false;}
 }
-function returnToProductsAfterSave(){clearPhotoPreviews();editorPhotos=[];editorColors=[];editId=null;editorAutoCode=null;adminTab='products';renderAdmin();}
+function returnToProductsAfterSave(){clearPhotoPreviews();editorPhotos=[];editorColors=[];editorColorStockMode=false;editorOpeningStock=null;editId=null;editorAutoCode=null;adminTab='products';renderAdmin();}
 async function deleteProduct(id){
   const p=adminProducts.find(x=>x.id===id);if(!p)return;
   if(!confirm(`¿Eliminar definitivamente «${p.name}» del catálogo?`))return;
@@ -802,6 +858,7 @@ adminContent.addEventListener('submit', async e=>{
 });
 adminContent.addEventListener('input',e=>{if(e.target.matches('#sale-form [name="quantity"]'))updateSalePreview();});
 adminContent.addEventListener('change',e=>{
+  if(e.target.matches('#sale-form [name="color"]'))updateSalePreview();
   if(e.target.id==='product-photos'){
     const input=e.target;const files=[...input.files];input.value='';
     if(files.length+editorPhotos.length>10){notify('Máximo 10 fotos por producto.');return;}
@@ -831,6 +888,23 @@ adminContent.addEventListener('click', async e=>{
   if(act==='edit')return openEditor(b.dataset.id);
   if(act==='cancel-editor')return cancelEditor();
   if(act==='delete')return deleteProduct(b.dataset.id);
+  if(act==='enable-color-stock'){
+    if(!confirm('¿Distribuir el stock de este producto por colores? La cantidad disponible se calculará según las unidades que agregues a cada color.'))return;
+    // Conserva en el formulario los demás campos ya editados.
+    const form=$('editor-form');const saved={};
+    if(form){for(const element of form.querySelectorAll('input[name],textarea[name],select[name]')){if(element.name!=='stock')saved[element.name]=element.value;}}
+    editorColorStockMode=true;
+    editorColors=editorColors.map(c=>({...c,qty:0}));
+    renderEditor();
+    const refreshed=$('editor-form');if(refreshed){for(const [name,value] of Object.entries(saved)){const field=refreshed.elements[name];if(field)field.value=value;}}
+    return;
+  }
+  if(act==='increase-color'||act==='decrease-color'){
+    const c=editorColors[Number(b.dataset.index)];if(!c||!editorColorStockMode)return;
+    c.qty=Math.max(0,Math.min(99999,(c.qty||0)+(act==='increase-color'?1:-1)));
+    if(c.qty===0){editorColors.splice(Number(b.dataset.index),1);editorPhotos.forEach(ph=>{if(ph.color===c.name)ph.color='';});}
+    renderSelectedColors();renderEditorPhotos();return;
+  }
   if(act==='add-color'){
     const found=PALETTE.find(([name])=>name===b.dataset.colorName);if(found)addColor(...found);return;
   }
