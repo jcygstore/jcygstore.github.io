@@ -302,8 +302,7 @@ function renderAdmin() {
     <div class="admin-product-list">${adminProducts.length ? adminProducts.map(p=>`<div class="admin-item">
       <img src="${esc(safeImage(p.photos[0]?.url))}" alt="${esc(p.name)}"><div><div class="admin-item-title">${esc(p.name)}</div><div class="admin-item-sub">${esc(p.code)} · ${money(p.price)} · ${unavailable(p)?'AGOTADO':p.stock+' disponibles'} · ${p.photos.length}/10 fotos</div><div class="admin-item-status ${!p.published?'draft':''}">${p.published?'● Publicado':'● Borrador (no visible)'}</div></div>
       <div class="admin-actions"><button type="button" class="admin-secondary" data-admin-action="edit" data-id="${esc(p.id)}">Editar</button><button type="button" class="admin-danger" data-admin-action="delete" data-id="${esc(p.id)}">Eliminar</button></div>
-    </div>`).join('') : '<div class="admin-note">No hay productos guardados en Firebase todavía. Puedes agregarlos o importar los tres productos de ejemplo.</div>'}</div>
-    <div class="admin-actions" style="margin-top:15px"><button type="button" class="admin-secondary" data-admin-action="import">Importar los 3 productos de ejemplo</button></div>`;
+    </div>`).join('') : '<div class="admin-note">Todavía no hay productos publicados. Usa «Agregar producto» para comenzar.</div>'}</div>`;
 }
 function renderSettings(){
   const mode=settings.whatsappMode==='username'?'username':'number';
@@ -354,24 +353,24 @@ function renderEditor(){
   <form id="editor-form"><div class="admin-panel"><h3>Información principal</h3>
     <div class="editor-grid">
       <label class="admin-field span-all">Nombre del producto<input name="name" required maxlength="130" value="${esc(p?.name||'')}"></label>
-      <label class="admin-field">Código del producto (editable)<input name="code" maxlength="7" minlength="7" pattern="[Jj][Ss]-[0-9]{4}" value="${esc(p?.code&&CODE_PATTERN.test(p.code)?p.code:'')}" autocapitalize="characters"><small>En un producto nuevo puedes dejarlo vacío y se generará automáticamente.</small></label>
+      <label class="admin-field">Código del producto (editable)<input name="code" maxlength="7" minlength="7" pattern="[Jj][Ss]-[0-9]{4}" value="${esc(p?.code&&CODE_PATTERN.test(p.code)?p.code:'')}" autocapitalize="characters"></label>
       <label class="admin-field span-all">Descripción breve<textarea name="desc" maxlength="500" rows="3">${esc(p?.desc||'')}</textarea></label>
       <label class="admin-field">Precio actual (S/)<input type="number" name="price" required min="0.01" step="0.01" value="${p?.price||''}"></label>
-      <label class="admin-field">Precio anterior (opcional)<input type="number" name="oldPrice" min="0" step="0.01" value="${p?.oldPrice||''}"><small>Si es mayor al precio actual se mostrará el porcentaje de descuento.</small></label>
+      <label class="admin-field">Precio anterior (opcional)<input type="number" name="oldPrice" min="0" step="0.01" value="${p?.oldPrice||''}"></label>
       <label class="admin-field">Cantidad disponible<input type="number" name="stock" required min="0" step="1" value="${p?.stock ?? ''}"></label>
       <label class="admin-field">Disponibilidad<select name="outOfStock"><option value="false" ${!p?.outOfStock?'selected':''}>Disponible según stock</option><option value="true" ${p?.outOfStock?'selected':''}>Agotado (stock 0 y permitir aviso por WhatsApp)</option></select></label>
       <label class="admin-field">Estado<select name="published"><option value="true" ${p?.published!==false?'selected':''}>Publicado (visible)</option><option value="false" ${p?.published===false?'selected':''}>Borrador (oculto)</option></select></label>
     </div></div>
-    <div class="admin-panel"><h3>Colores del producto</h3><p class="muted">Selecciona los colores que pueden elegir los compradores. Después, vincula cada foto a uno de ellos.</p>
+    <div class="admin-panel"><h3>Colores del producto</h3>
       <div id="selected-colors" class="selected-colors"></div><div id="color-palette" class="color-palette"></div>
       <div class="custom-color-row"><label class="admin-field">Color personalizado<input name="customColorName" maxlength="35"></label>
         <label class="admin-field">Tono<input name="customColorHex" type="color" value="#2563eb"></label>
         <button class="admin-secondary" type="button" data-admin-action="custom-color">Añadir</button></div></div>
     <div class="admin-panel"><h3>Fotografías del producto · Cloudinary</h3>
-      <p class="muted">Requisitos: <strong>PNG transparente · Máximo 10 fotos · Hasta 10 MB por foto</strong>.</p>
+      
       <label class="admin-field">Seleccionar fotografías
         <input id="product-photos" type="file" accept="image/png,.png" multiple></label>
-      ${!workerReady()?'<p class="admin-error">Falta configurar Cloudinary para subir fotografías.</p>':''}
+      
       <details style="margin-top:12px"><summary style="cursor:pointer">¿Ya tengo una foto en GitHub? Añadir por enlace</summary>
         <label class="admin-field" style="margin-top:9px">Ruta de imagen en GitHub
           <input id="photo-url" type="text" inputmode="url" spellcheck="false" autocomplete="off"></label>
@@ -380,7 +379,7 @@ function renderEditor(){
       <div id="editor-photos" class="photo-list"></div></div>
     <div class="admin-panel"><h3>Características completas</h3><label class="admin-field">Una característica por línea, con formato Nombre: Detalle
       <textarea name="specs" rows="9">${esc((p?.specs||[]).map(s=>`${s.label}: ${s.value}`).join('\n'))}</textarea>
-      <small>Estas características se muestran cuando el comprador abre «Detalles».</small></label></div>
+      </label></div>
     <div id="save-status" class="admin-working" aria-live="polite"></div>
     <div class="form-footer"><button type="button" id="cancel-product-editor" class="admin-secondary" data-admin-action="cancel-editor">Cancelar</button><button type="submit" class="admin-primary" id="save-product">Guardar producto</button></div></form>`;
   renderSelectedColors();renderEditorPhotos();
@@ -391,7 +390,7 @@ function renderEditor(){
 }
 function renderSelectedColors(){
   const selected=$('selected-colors'),palette=$('color-palette');if(!selected||!palette)return;
-  selected.innerHTML=editorColors.length ? editorColors.map((c,i)=>`<span class="selected-color"><i class="color-dot" style="background:${validColor(c.hex)}"></i>${esc(c.name)}<button type="button" data-admin-action="remove-color" data-index="${i}" aria-label="Eliminar color ${esc(c.name)}">✕</button></span>`).join('') : '<span class="muted">Aún no seleccionaste colores.</span>';
+  selected.innerHTML=editorColors.length ? editorColors.map((c,i)=>`<span class="selected-color"><i class="color-dot" style="background:${validColor(c.hex)}"></i>${esc(c.name)}<button type="button" data-admin-action="remove-color" data-index="${i}" aria-label="Eliminar color ${esc(c.name)}">✕</button></span>`).join('') : '';
   palette.innerHTML=PALETTE.map(([name,hex])=>`<button type="button" class="palette-choice" data-admin-action="add-color" data-color-name="${esc(name)}" ${editorColors.some(c=>c.name.toLowerCase()===name.toLowerCase())?'disabled':''}><span class="color-dot" style="background:${hex}"></span>${esc(name)}</button>`).join('');
 }
 function renderEditorPhotos(){
@@ -399,7 +398,7 @@ function renderEditorPhotos(){
   wrap.innerHTML=editorPhotos.length ? editorPhotos.map((ph,i)=>`<div class="photo-tile"><img src="${esc(safeImage(ph.preview||ph.url))}" alt="Foto ${i+1}">
     <label for="photo-color-${i}">Foto ${i+1} · Asociar al color</label><select id="photo-color-${i}" data-photo-color="${esc(ph.id)}"><option value="">Sin color específico</option>
     ${editorColors.map(c=>`<option value="${esc(c.name)}" ${ph.color===c.name?'selected':''}>${esc(c.name)}</option>`).join('')}</select>
-    <button type="button" data-admin-action="remove-photo" data-photo-id="${esc(ph.id)}">✕ Quitar foto</button></div>`).join('') : '<p class="muted">Sin fotos todavía. Selecciona uno o varios archivos PNG para mostrarlos aquí; se subirán cuando guardes el producto.</p>';
+    <button type="button" data-admin-action="remove-photo" data-photo-id="${esc(ph.id)}">✕ Quitar foto</button></div>`).join('') : '';
 }
 function addColor(name,hex){
   name=String(name||'').trim().slice(0,35);if(!name)return notify('Escribe el nombre del color.');
@@ -632,25 +631,6 @@ async function deleteProduct(id){
   try {const batch=sdk.writeBatch(db);batch.delete(sdk.doc(db,'products',id));batch.delete(sdk.doc(db,'productLikes',id));await batch.commit();cart=cart.filter(item=>item.id!==id);saveCart();likes.delete(id);localStorage.setItem('jcyg_likes_v2',JSON.stringify([...likes]));notify('Producto eliminado.');for(const ph of p.photos) await removeCloudinaryPhoto(ph.path);}
   catch(e){notify(`Error al eliminar: ${e.code||e.message}`);}
 }
-async function importSamples(){
-  if(!confirm('¿Importar los tres productos de ejemplo a Firebase? No reemplazará productos personalizados.'))return;
-  try{
-    const seqRef=sdk.doc(db,'settings','productCodes');
-    await sdk.runTransaction(db,async tx=>{
-      const snap=await tx.get(seqRef);
-      let last=Math.max(snap.exists()?Number(snap.data().lastNumber)||0:0,lastKnownProductNumber,...adminProducts.map(p=>numberFromCode(p.code)),0);
-      for(const item of SAMPLE_PRODUCTS){
-        if(adminProducts.some(p=>p.id===item.id))continue;
-        const {id,...data}=item;
-        last+=1;const code=formattedCode(last);
-        tx.set(sdk.doc(db,'products',id),{...data,code,updatedAt:sdk.serverTimestamp()});
-      }
-      tx.set(seqRef,{lastNumber:last},{merge:true});
-      lastKnownProductNumber=last;
-    });
-    notify('Productos de ejemplo importados.');
-  }catch(e){notify(`No se pudieron importar: ${e.code||e.message}`);}
-}
 adminContent.addEventListener('submit', async e=>{
   e.preventDefault();if(e.target.id==='login-form')await handleLogin(e.target);
   if(e.target.id==='settings-form')await saveSettings(e.target);
@@ -665,7 +645,7 @@ adminContent.addEventListener('change',e=>{
     }
     files.forEach(file=>editorPhotos.push({id:crypto.randomUUID(),url:'',path:'',color:'',file,preview:URL.createObjectURL(file)}));
     renderEditorPhotos();
-    notify(`${files.length} PNG listo(s) para Cloudinary. Asigna sus colores y pulsa Guardar producto.`);
+
   }
   if(e.target.matches('[data-photo-color]')){
     const ph=editorPhotos.find(p=>p.id===e.target.dataset.photoColor);if(ph)ph.color=e.target.value;
@@ -682,7 +662,6 @@ adminContent.addEventListener('click', async e=>{
   if(act==='edit')return openEditor(b.dataset.id);
   if(act==='cancel-editor')return cancelEditor();
   if(act==='delete')return deleteProduct(b.dataset.id);
-  if(act==='import')return importSamples();
   if(act==='add-color'){
     const found=PALETTE.find(([name])=>name===b.dataset.colorName);if(found)addColor(...found);return;
   }
@@ -710,7 +689,7 @@ adminContent.addEventListener('click', async e=>{
         img.src=url;
       });
       editorPhotos.push({id:crypto.randomUUID(),url,path:'',color:'',file:null,preview:url});
-      input.value='';renderEditorPhotos();notify('Fotografía agregada. Asigna su color si corresponde.');
+      input.value='';renderEditorPhotos();
     }catch(e){notify('No se pudo abrir la foto. Revisa el nombre en assets y espera a que GitHub Pages publique el archivo.');}
     finally{b.disabled=false;b.textContent=original;}
     return;

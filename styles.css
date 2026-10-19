@@ -144,7 +144,7 @@ html,body{background:#f8fbff}
 .card .actions .ico svg{width:27px;height:27px}
 .card .actions .likes-text{font-size:12px;font-weight:900;font-variant-numeric:tabular-nums;line-height:1.2}
 .consult-side .ico{background:#25d366;color:#fff;border:none;box-shadow:0 10px 24px #25d36644}
-.consult-side small{color:#168347!important}
+.consult-side small{color:#111!important}
 .buy-side .ico{background:linear-gradient(145deg,#6f5bfa,#417ae7);color:#fff;box-shadow:0 10px 24px #7c63fa44}
 .buy-side small{color:#574fba!important}
 .cart-side .ico{background:#fff;color:#604cdd;border-color:#ded6ff}
@@ -187,3 +187,6 @@ html,body{background:#f8fbff}
     inset: clamp(100px, 12dvh, 145px) 10px clamp(205px, 24dvh, 295px);
   }
 }
+
+/* Consultar: letras en negro, sin cambiar fondo verde ni icono. */
+.primary.whatsapp{color:#111!important}
