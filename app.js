@@ -57,6 +57,27 @@ const safeImage = (url) => {
   return (/^https:\/\//i.test(s) || /^assets\/[\w.-]+\.(webp|png|jpg|jpeg|svg)$/i.test(s) || /^blob:/i.test(s)) ? s : blankPhoto;
 };
 const validColor = (s) => /^#[a-fA-F0-9]{6}$/.test(String(s || '')) ? s : '#cbd5e1';
+// Presentación: recorta visualmente márgenes transparentes de PNG existentes
+// almacenados en Cloudinary, sin cambiar el enlace original en Firestore.
+// e_trim es una transformación estándar de Cloudinary, no eliminación de fondo.
+function displayPhoto(url) {
+  const original = safeImage(url);
+  if (/^https:\/\/res\.cloudinary\.com\/[^/]+\/image\/upload\//i.test(original)
+      && !/\/e_trim(?:\/|,)/i.test(original)) {
+    return original.replace('/image/upload/', '/image/upload/e_trim/');
+  }
+  return original;
+}
+// Si la transformación está restringida, volver a la foto original.
+document.addEventListener('error', event => {
+  const element = event.target;
+  if (element?.tagName !== 'IMG' || element.dataset.imageFallback !== 'allowed') return;
+  const url = element.currentSrc || element.src;
+  if (!url.includes('/image/upload/e_trim/')) return;
+  element.dataset.imageFallback = 'used';
+  element.src = url.replace('/image/upload/e_trim/', '/image/upload/');
+}, true);
+
 const notify = (message) => { toast.textContent = message; toast.classList.add('show'); clearTimeout(toastTimer); toastTimer = setTimeout(() => toast.classList.remove('show'), 3400); };
 const isAdmin = () => !!activeUser && activeUser.uid === adminUid;
 const normalize = (doc) => ({
@@ -84,7 +105,7 @@ function renderFeed() {
   feed.innerHTML = products.map(p => {
     const selected = selection(p), off = discount(p);
     return `<article class="card" data-id="${esc(p.id)}">
-      <div class="product-stage"><img src="${esc(safeImage(photoForColor(p,selected)))}" alt="${esc(p.name)}" loading="${p === products[0] ? 'eager' : 'lazy'}"></div>
+      <div class="product-stage"><img src="${esc(displayPhoto(photoForColor(p,selected)))}" data-image-fallback="allowed" alt="${esc(p.name)}" loading="${p === products[0] ? 'eager' : 'lazy'}"></div>
       <div class="shade"></div>${header()}
       ${firebaseReady ? '' : '<div class="sample-banner">Catálogo de ejemplo · Firebase pendiente</div>'}
       <div class="info"><div class="eyebrow">JCYG STORE</div><div class="name">${esc(p.name)}</div><div class="product-code">Código: ${esc(p.code)}</div><div class="desc">${esc(p.desc)}</div>
@@ -110,7 +131,7 @@ function chooseColor(id, color) {
   chosenColors.set(id,color);
   const card = [...feed.querySelectorAll('.card')].find(c => c.dataset.id === id);
   if(card) {
-    const img = card.querySelector('.product-stage img'); if(img) img.src = safeImage(photoForColor(p,color));
+    const img = card.querySelector('.product-stage img'); if(img) { img.dataset.imageFallback='allowed'; img.src = displayPhoto(photoForColor(p,color)); }
     card.querySelectorAll('[data-color-index]').forEach(btn => btn.classList.toggle('selected',p.colors[Number(btn.dataset.colorIndex)]?.name===color));
   }
   if(currentId === id && modal.classList.contains('show')) { photoIndex = Math.max(0,p.photos.findIndex(ph => ph.color===color)); renderDetails(p); }
@@ -121,8 +142,8 @@ function renderDetails(p) {
   photoIndex = Math.max(0, Math.min(photoIndex,photos.length-1));
   const specs = p.specs.map(s=>`<div class="spec"><b>${esc(s.label)}</b><span>${esc(s.value)}</span></div>`).join('');
   sheet.innerHTML = `<div class="detail-wrap"><button class="close" type="button" data-detail-action="close" aria-label="Cerrar">✕</button>
-    <img class="gallery-main" id="detail-photo" src="${esc(safeImage(photos[photoIndex].url))}" alt="${esc(p.name)}">
-    <div class="gallery-strip">${photos.map((ph,i)=>`<button type="button" class="thumb ${i===photoIndex?'selected':''}" data-detail-action="photo" data-photo-index="${i}" aria-label="Foto ${i+1}"><img src="${esc(safeImage(ph.url))}" alt="Foto ${i+1}"></button>`).join('')}</div>
+    <img class="gallery-main" id="detail-photo" data-image-fallback="allowed" src="${esc(displayPhoto(photos[photoIndex].url))}" alt="${esc(p.name)}">
+    <div class="gallery-strip">${photos.map((ph,i)=>`<button type="button" class="thumb ${i===photoIndex?'selected':''}" data-detail-action="photo" data-photo-index="${i}" aria-label="Foto ${i+1}"><img data-image-fallback="allowed" src="${esc(displayPhoto(ph.url))}" alt="Foto ${i+1}"></button>`).join('')}</div>
     <div class="detail-kicker">JCYG STORE · PRODUCTO</div><h2>${esc(p.name)}</h2><div class="product-code">Código: ${esc(p.code)}</div>
     <div class="detail-price"><span class="p">${money(p.price)}</span>${discount(p) ? `<del>${money(p.oldPrice)}</del><span class="discount">-${discount(p)}%</span>` : ''}</div>
     <div class="stock-line"><span class="stock-badge ${p.stock===0?'out':''}">${p.stock ? `${p.stock} disponibles` : 'Agotado'}</span></div>
@@ -238,7 +259,7 @@ modal.addEventListener('click',e => {
   if(b.dataset.detailAction==='color') {const c=p.colors[Number(b.dataset.colorIndex)];if(c)chooseColor(p.id,c.name);}
   if(b.dataset.detailAction==='photo') {
     photoIndex=Number(b.dataset.photoIndex);const src=p.photos[photoIndex]?.url || blankPhoto;
-    $('detail-photo').src=safeImage(src);sheet.querySelectorAll('.thumb').forEach(el=>el.classList.toggle('selected',Number(el.dataset.photoIndex)===photoIndex));
+    $('detail-photo').src=displayPhoto(src);sheet.querySelectorAll('.thumb').forEach(el=>el.classList.toggle('selected',Number(el.dataset.photoIndex)===photoIndex));
   }
 });
 function openAdmin(){adminOverlay.classList.add('show');adminOverlay.setAttribute('aria-hidden','false');renderAdmin();}
@@ -393,29 +414,57 @@ async function waitLimit(promise, milliseconds, detail) {
   } finally { clearTimeout(handle); }
 }
 async function makePNG(file) {
-  if(file.type !== 'image/png' || !/\.png$/i.test(file.name)) throw Error('Solo se aceptan archivos PNG.');
-  if(file.size > 10*1024*1024) throw Error('El PNG supera 10 MB. Elige uno más ligero.');
+  if (file.type !== 'image/png' || !/\.png$/i.test(file.name)) throw Error('Solo se aceptan archivos PNG.');
+  if (file.size > 10 * 1024 * 1024) throw Error('El PNG supera 10 MB. Elige uno más ligero.');
   const local = URL.createObjectURL(file);
   try {
     const img = new Image(); img.src = local;
-    await waitLimit(img.decode(), 15000, 'La imagen no pudo abrirse en 15 segundos. Comprueba que sea un PNG válido y vuelve a intentarlo.');
-    if(img.naturalWidth > 6000 || img.naturalHeight > 6000) throw Error('Imagen demasiado grande. Reduce su tamaño.');
-    // Comprueba transparencia REAL, no solo la extensión .png.
-    const proof = document.createElement('canvas');
-    const scale=Math.min(1,96/Math.max(img.naturalWidth,img.naturalHeight));
-    proof.width=Math.max(1,Math.round(img.naturalWidth*scale));proof.height=Math.max(1,Math.round(img.naturalHeight*scale));
-    const ctx=proof.getContext('2d',{willReadFrequently:true}); ctx.drawImage(img,0,0,proof.width,proof.height);
-    const pixels=ctx.getImageData(0,0,proof.width,proof.height).data;
-    let alpha=false;
-    for(let i=3;i<pixels.length;i+=4){if(pixels[i]<245){alpha=true;break;}}
-    if(!alpha) throw Error('Esta imagen no tiene transparencia. Primero quita el fondo y guárdala como PNG transparente.');
-    if(Math.max(img.naturalWidth,img.naturalHeight)<=1600) return file;
-    const ratio=1600/Math.max(img.naturalWidth,img.naturalHeight);
-    const canvas=document.createElement('canvas');
-    canvas.width=Math.max(1,Math.round(img.naturalWidth*ratio));canvas.height=Math.max(1,Math.round(img.naturalHeight*ratio));
-    canvas.getContext('2d').drawImage(img,0,0,canvas.width,canvas.height);
-    return await new Promise((ok,fail)=>canvas.toBlob(blob=>blob?ok(blob):fail(Error('No se pudo optimizar el PNG.')),'image/png'));
-  } finally {URL.revokeObjectURL(local);}
+    await waitLimit(img.decode(), 15000, 'La imagen no pudo abrirse. Comprueba que sea un PNG válido.');
+    if (img.naturalWidth > 6000 || img.naturalHeight > 6000) throw Error('Imagen demasiado grande. Reduce su tamaño.');
+    // Procesar en un lienzo de máximo 1600 px para no sobrecargar los móviles.
+    const scale = Math.min(1, 1600 / Math.max(img.naturalWidth, img.naturalHeight));
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.max(1, Math.round(img.naturalWidth * scale));
+    canvas.height = Math.max(1, Math.round(img.naturalHeight * scale));
+    const ctx = canvas.getContext('2d', {willReadFrequently: true});
+    if (!ctx) throw Error('El navegador no permite procesar imágenes.');
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    const w = canvas.width, h = canvas.height;
+    const data = ctx.getImageData(0, 0, w, h).data;
+    let hasTransparency = false;
+    let left = w, top = h, right = -1, bottom = -1;
+    // 10/255 conserva contornos antialias y sombras sin contar píxeles casi invisibles.
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        const alpha = data[(y * w + x) * 4 + 3];
+        if (alpha < 245) hasTransparency = true;
+        if (alpha >= 10) {
+          if (x < left) left = x;
+          if (x > right) right = x;
+          if (y < top) top = y;
+          if (y > bottom) bottom = y;
+        }
+      }
+    }
+    if (!hasTransparency) throw Error('Esta imagen no tiene transparencia. Sube un PNG sin fondo.');
+    if (right < left || bottom < top) throw Error('El PNG está vacío. Añade una foto del producto.');
+    // Mantener un margen visible cercano al 4% alrededor del objeto.
+    const objW = right - left + 1, objH = bottom - top + 1;
+    const padding = Math.max(5, Math.round(Math.max(objW, objH) * 0.045));
+    left = Math.max(0, left - padding);
+    right = Math.min(w - 1, right + padding);
+    top = Math.max(0, top - padding);
+    bottom = Math.min(h - 1, bottom + padding);
+    const trimmed = document.createElement('canvas');
+    trimmed.width = right - left + 1;
+    trimmed.height = bottom - top + 1;
+    trimmed.getContext('2d').drawImage(canvas, left, top, trimmed.width, trimmed.height,
+      0, 0, trimmed.width, trimmed.height);
+    return await new Promise((resolve, reject) => trimmed.toBlob(
+      blob => blob ? resolve(blob) : reject(Error('No se pudo preparar la fotografía.')),
+      'image/png'
+    ));
+  } finally { URL.revokeObjectURL(local); }
 }
 async function authorizeCloudinary(endpoint,body){
   if(!workerReady()) throw Error('Falta configurar cloudinary-config.js con la URL del Worker.');

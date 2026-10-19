@@ -163,3 +163,27 @@ html,body{background:#f8fbff}
   .card .actions .act small{font-size:9px}
   .card .info{right:79px}
 }
+
+
+/* JCYG STORE — fotos destacadas uniformes y sin recortes (octubre 2026). */
+.product-stage {
+  inset: clamp(106px, 12dvh, 155px) 12px clamp(215px, 24dvh, 305px);
+}
+.product-stage img {
+  width: 100%;
+  height: 100%;
+  max-width: 900px;
+  max-height: 760px;
+  object-fit: contain;
+  object-position: center;
+}
+@media (min-width: 800px) {
+  .product-stage {
+    inset: 105px 8% 210px;
+  }
+}
+@media (max-width: 620px) {
+  .product-stage {
+    inset: clamp(100px, 12dvh, 145px) 10px clamp(205px, 24dvh, 295px);
+  }
+}
