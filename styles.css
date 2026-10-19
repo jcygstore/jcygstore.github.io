@@ -107,3 +107,31 @@ html,body{background:#f8fbff}
 .switch-row input{accent-color:#7b62ed}
 .admin-working{font-size:12px;margin:12px 0;color:#5b58b3}
 @media(max-width:620px){.brand-logo{width:clamp(125px,43vw,165px)}.tag{font-size:9px;padding:8px 10px;letter-spacing:.6px}.top{padding:11px 12px}.card .info{right:83px}.price{font-size:25px}.actions{gap:12px;bottom:113px}.ico{width:51px;height:51px}.admin-overlay{padding:0}.admin-dialog{width:100%;height:100dvh;max-height:100dvh;border-radius:0}.admin-content{padding:16px}.admin-item{grid-template-columns:66px minmax(0,1fr)}.admin-item img{width:65px;height:65px}.admin-item .admin-actions{grid-column:1/-1}.editor-grid{grid-template-columns:1fr}.custom-color-row{grid-template-columns:minmax(0,1fr) 64px auto}.photo-list{grid-template-columns:repeat(2,minmax(0,1fr))}.detail-specs{grid-template-columns:1fr 1fr}.sheet h2{font-size:25px}}
+
+/* JCYG STORE — mejoras de catálogo octubre 2026 */
+.admin-entry{font-size:12px!important;padding:11px 15px!important;font-weight:900!important;letter-spacing:.9px!important}
+.product-code{font-size:11px;font-weight:800;letter-spacing:.5px;color:#64739d;margin:5px 0}
+.card .actions{gap:10px;bottom:84px;right:11px}
+.card .actions .ico{width:49px;height:49px;position:relative}
+.card .actions .act small{margin-top:3px;font-size:10px}
+.heart-ico svg{stroke:#aeb4c4;stroke-width:2.1;fill:none;transition:fill .22s,stroke .22s,transform .22s}
+.act.liked .heart-ico svg{fill:#ed284c;stroke:#ed284c;transform:scale(1.08)}
+.act.liked .ico{border-color:#ffb2c3;background:#fff5f7}
+.act.liked .likes-text{color:#d52046}
+.buy-side .ico svg{color:#fff;width:29px;height:29px}
+.cart-side .ico{background:#fff;color:#584ad9;border-color:#dcd6ff}
+.cart-count{position:absolute;top:-7px;right:-9px;min-width:21px;height:21px;background:#fc4b95;color:white;border:2px solid white;border-radius:50%;font-size:10px;display:grid;place-items:center;padding:0 3px;font-weight:900}
+#cart-floating{position:fixed;right:15px;top:110px;z-index:12;width:51px;height:51px;display:flex;align-items:center;justify-content:center;border-radius:50%;background:#fff;color:#6356e4;border:1px solid #d9def4;box-shadow:0 10px 28px #46557538;cursor:pointer}
+#cart-floating .cart-count{right:-3px;top:-5px}
+.cart-detail-btn{background:#ede9ff;color:#5e4dc0;margin-top:9px}
+.cart-panel h2{margin-top:10px}
+.cart-row{display:flex;gap:11px;align-items:center;border-bottom:1px solid #edf0f6;padding:13px 0}
+.cart-row img{width:65px;height:70px;object-fit:contain;flex-shrink:0}
+.cart-row-main{display:flex;flex:1;min-width:0;flex-direction:column;gap:4px;font-size:13px}
+.cart-row-main small,.cart-row-main span{color:#687894}.cart-row-main em{font-style:normal;color:#bb3939;font-size:11px}
+.cart-controls{display:flex;align-items:center;gap:5px;flex-wrap:wrap;justify-content:flex-end;max-width:100px}
+.cart-controls button{background:#f1f3fb;border:1px solid #d8dfed;border-radius:9px;padding:5px 8px;color:#344566;cursor:pointer}
+.cart-total{display:flex;justify-content:space-between;padding:18px 0;font-size:18px}
+.cart-panel .whatsapp{display:flex;justify-content:center;align-items:center;gap:10px}
+.cart-panel .whatsapp svg{width:23px;height:23px}
+@media(max-width:540px){.card .info{right:78px;bottom:28px}.card .actions{bottom:75px;gap:9px;right:10px}.card .actions .ico{width:43px;height:43px}.card .actions .ico svg{width:25px;height:25px}.card .actions .act small{font-size:9px}.card .info .name{font-size:clamp(23px,6vw,34px)}.card .info .price{font-size:24px}.admin-entry{font-size:11px!important;padding:9px 11px!important}#cart-floating{top:95px;right:12px}}

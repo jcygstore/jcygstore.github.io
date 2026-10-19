@@ -30,7 +30,13 @@ const SAMPLE_PRODUCTS = [
 const firebaseReady = Boolean(firebaseConfig.apiKey && !firebaseConfig.apiKey.startsWith('REEMPLAZAR') && firebaseConfig.projectId && !firebaseConfig.projectId.startsWith('REEMPLAZAR') && adminUid && !adminUid.startsWith('REEMPLAZAR'));
 let products = firebaseReady ? [] : structuredClone(SAMPLE_PRODUCTS);
 let adminProducts = [], settings = {whatsapp:''};
-let likes = new Set(), chosenColors = new Map(), currentId = null, photoIndex = 0;
+let likes = new Set(); try { likes = new Set(JSON.parse(localStorage.getItem('jcyg_likes_v2') || '[]')); }catch{}
+let chosenColors = new Map(), currentId = null, photoIndex = 0;
+let likeCounts = new Map(), cart = []; try { cart = JSON.parse(localStorage.getItem('jcyg_cart_v2') || '[]'); if(!Array.isArray(cart))cart=[]; }catch{cart=[];}
+let unsubscribeLikes = null;
+const heartSvg = `<svg width="29" height="29" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.8 4.6a5.4 5.4 0 0 0-7.7 0L12 5.7l-1.1-1.1a5.4 5.4 0 0 0-7.7 7.7l1.1 1.1L12 21l7.7-7.6 1.1-1.1a5.4 5.4 0 0 0 0-7.7Z"/></svg>`;
+const waSvg = `<svg width="29" height="29" viewBox="0 0 32 32" aria-hidden="true" fill="currentColor"><path d="M16 .8A15.2 15.2 0 0 0 2.8 23.5L.9 31l7.7-2a15.2 15.2 0 1 0 7.4-28.2Zm0 27.5c-2.2 0-4.3-.6-6.2-1.7l-.5-.3-4.5 1.2L6 23l-.3-.5a12.3 12.3 0 1 1 10.3 5.8Zm6.8-9.2c-.4-.2-2.3-1.1-2.7-1.3-.4-.1-.6-.2-.9.2s-1 1.3-1.2 1.5c-.2.2-.4.3-.8.1-.4-.2-1.6-.6-3.1-1.9-1.1-1-1.8-2.2-2-2.6-.2-.4 0-.6.1-.8l.6-.7c.2-.2.3-.4.4-.7.1-.2.1-.5 0-.7-.1-.2-.9-2.2-1.2-3-.3-.7-.6-.6-.9-.6h-.8c-.3 0-.7.1-1 .5-.4.4-1.4 1.4-1.4 3.4s1.4 3.9 1.6 4.2c.2.3 2.8 4.3 6.8 6 .9.4 1.7.6 2.2.8.9.3 1.7.2 2.4.1.7-.1 2.3-.9 2.6-1.8.3-.9.3-1.7.2-1.8-.1-.2-.4-.3-.8-.5Z"/></svg>`;
+const bagSvg = `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h16l-1 12H5L4 8Z"/><path d="M9 9V6a3 3 0 0 1 6 0v3"/></svg>`;
 let sdk = null, db = null, auth = null, activeUser = null;
 let unsubscribePublic = null, unsubscribeAdmin = null, unsubscribeSettings = null;
 let adminTab = 'products', editId = null, editorColors = [], editorPhotos = [], saving = false;
@@ -48,7 +54,7 @@ const isAdmin = () => !!activeUser && activeUser.uid === adminUid;
 const normalize = (doc) => ({
   ...doc, id:String(doc.id), name:String(doc.name || 'Producto sin nombre'), desc:String(doc.desc || ''),
   stock:Math.max(0,Math.floor(Number(doc.stock) || 0)), price:Number(doc.price) || 0,
-  oldPrice:Number(doc.oldPrice) || 0, published:doc.published !== false,
+  oldPrice:Number(doc.oldPrice) || 0, published:doc.published !== false, outOfStock:Boolean(doc.outOfStock) || Number(doc.stock)===0, code:String(doc.code||('JCYG-'+String(doc.id).slice(-6).toUpperCase())),
   colors:Array.isArray(doc.colors) ? doc.colors.map(c => ({name:String(c.name || '').slice(0,35),hex:validColor(c.hex)})) : [],
   photos:Array.isArray(doc.photos) ? doc.photos.slice(0,10).map(p => ({url:safeImage(p.url),path:String(p.path || ''),color:String(p.color || '')})) : [],
   specs:Array.isArray(doc.specs) ? doc.specs.map(s => ({label:String(s.label || 'Detalle'),value:String(s.value || '')})) : []
@@ -56,13 +62,15 @@ const normalize = (doc) => ({
 const getProduct = id => products.find(p => p.id === id);
 const selection = p => chosenColors.get(p.id) || '';
 function photoForColor(p, color) { return p.photos.find(ph => ph.color === color && color)?.url || p.photos[0]?.url || blankPhoto; }
+const unavailable = p => p.outOfStock || p.stock<=0;
 const discount = p => p.oldPrice > p.price && p.price > 0 ? Math.round((1-p.price/p.oldPrice)*100) : 0;
 function header() {
-  return `<div class="top"><div class="logo"><img class="brand-logo" src="${logoPath}" alt="JCYG STORE"></div><button type="button" class="tag" data-action="admin" title="Ingresar a administración">Catálogo 2026</button></div>`;
+  return `<div class="top"><div class="logo"><img class="brand-logo" src="${logoPath}" alt="JCYG STORE"></div><button type="button" class="tag admin-entry" data-action="admin" title="Ingresar a administración">Catálogo 2026</button></div>`;
 }
 function renderFeed() {
+  let floating=document.getElementById('cart-floating');if(!floating){floating=document.createElement('button');floating.id='cart-floating';floating.type='button';floating.innerHTML=`${bagSvg}<span class="cart-count">0</span>`;floating.setAttribute('aria-label','Abrir carrito');floating.addEventListener('click',cartPanel);document.body.appendChild(floating);}updateCartBadges();
   if(!products.length) {
-    feed.innerHTML = `<section class="no-products"><div class="empty-center"><img src="${logoPath}" alt="JCYG STORE"><h2>Pronto tendremos novedades</h2><p>Estamos preparando nuestro catálogo de productos.</p><button class="tag" data-action="admin" type="button">Catálogo 2026 · Administrador</button></div></section>`;
+    feed.innerHTML = `<section class="no-products"><div class="empty-center"><img src="${logoPath}" alt="JCYG STORE"><h2>Pronto tendremos novedades</h2><p>Estamos preparando nuestro catálogo de productos.</p><button class="tag admin-entry" data-action="admin" type="button">Catálogo 2026 · Administrador</button></div></section>`;
     return;
   }
   feed.innerHTML = products.map(p => {
@@ -71,14 +79,15 @@ function renderFeed() {
       <div class="product-stage"><img src="${esc(safeImage(photoForColor(p,selected)))}" alt="${esc(p.name)}" loading="${p === products[0] ? 'eager' : 'lazy'}"></div>
       <div class="shade"></div>${header()}
       ${firebaseReady ? '' : '<div class="sample-banner">Catálogo de ejemplo · Firebase pendiente</div>'}
-      <div class="info"><div class="eyebrow">JCYG STORE</div><div class="name">${esc(p.name)}</div><div class="desc">${esc(p.desc)}</div>
+      <div class="info"><div class="eyebrow">JCYG STORE</div><div class="name">${esc(p.name)}</div><div class="product-code">Código: ${esc(p.code)}</div><div class="desc">${esc(p.desc)}</div>
         <div class="availability"><span class="stock-mini ${p.stock===0?'out':''}">${p.stock ? `${p.stock} disponibles` : 'Agotado'}</span>
           ${p.colors.length ? `<span class="available-colors"><span class="available-colors-label">Colores:</span>${p.colors.map((c,i) => `<button type="button" class="mini-color-btn ${selected===c.name?'selected':''}" style="--c:${validColor(c.hex)}" title="${esc(c.name)}" aria-label="Ver color ${esc(c.name)}" data-action="color" data-color-index="${i}"></button>`).join('')}</span>` : ''}
         </div><div class="price"><span class="currency">Precio</span><strong>${money(p.price)}</strong>${off ? `<del>${money(p.oldPrice)}</del><span class="discount">-${off}%</span>` : ''}</div>
       </div><div class="actions">
-        <button class="act ${likes.has(p.id)?'liked':''}" type="button" data-action="like" aria-label="Me gusta"><span class="ico">♡</span><small>Me gusta</small></button>
+        <button class="act ${likes.has(p.id)?'liked':''}" type="button" data-action="like" aria-label="Me gusta" aria-pressed="${likes.has(p.id)}"><span class="ico heart-ico">${heartSvg}</span><small class="likes-text">♥ ${likeCounts.get(p.id)||0}</small></button>
         <button class="act" type="button" data-action="details" aria-label="Ver características"><span class="ico">＋</span><small>Detalles</small></button>
-        <button class="act buy-side" type="button" data-action="buy" aria-label="Comprar por WhatsApp"><span class="ico">☏</span><small>Comprar</small></button>
+        <button class="act buy-side" type="button" data-action="buy" aria-label="Comprar por WhatsApp"><span class="ico">${waSvg}</span><small>${unavailable(p)?'Avisarme':'Comprar'}</small></button>
+        <button class="act cart-side" type="button" data-action="cart-add" aria-label="Agregar al carrito"><span class="ico">${bagSvg}<span class="cart-count">${cartTotal()}</span></span><small>Carrito</small></button>
       </div></article>`;
   }).join('');
   const cards = [...feed.querySelectorAll('.card')];
@@ -106,13 +115,14 @@ function renderDetails(p) {
   sheet.innerHTML = `<div class="detail-wrap"><button class="close" type="button" data-detail-action="close" aria-label="Cerrar">✕</button>
     <img class="gallery-main" id="detail-photo" src="${esc(safeImage(photos[photoIndex].url))}" alt="${esc(p.name)}">
     <div class="gallery-strip">${photos.map((ph,i)=>`<button type="button" class="thumb ${i===photoIndex?'selected':''}" data-detail-action="photo" data-photo-index="${i}" aria-label="Foto ${i+1}"><img src="${esc(safeImage(ph.url))}" alt="Foto ${i+1}"></button>`).join('')}</div>
-    <div class="detail-kicker">JCYG STORE · PRODUCTO</div><h2>${esc(p.name)}</h2>
+    <div class="detail-kicker">JCYG STORE · PRODUCTO</div><h2>${esc(p.name)}</h2><div class="product-code">Código: ${esc(p.code)}</div>
     <div class="detail-price"><span class="p">${money(p.price)}</span>${discount(p) ? `<del>${money(p.oldPrice)}</del><span class="discount">-${discount(p)}%</span>` : ''}</div>
     <div class="stock-line"><span class="stock-badge ${p.stock===0?'out':''}">${p.stock ? `${p.stock} disponibles` : 'Agotado'}</span></div>
     <p class="detail-desc">${esc(p.desc)}</p>
     ${p.colors.length ? `<div class="detail-subtitle">Selecciona un color${selected ? `: ${esc(selected)}` : ''}</div><div class="color-list">${p.colors.map((c,i)=>`<button class="color-choice ${selected===c.name?'selected':''}" type="button" data-detail-action="color" data-color-index="${i}"><i class="color-dot" style="background:${validColor(c.hex)}"></i>${esc(c.name)}</button>`).join('')}</div>` : ''}
     <h3 class="spec-title">Características completas</h3>${specs ? `<div class="detail-specs">${specs}</div>` : '<p class="muted">Consulta las características por WhatsApp.</p>'}
-    <button type="button" class="primary whatsapp" data-detail-action="buy">WhatsApp · Consultar producto</button>
+    <button type="button" class="primary whatsapp" data-detail-action="buy">${unavailable(p)?'WhatsApp · Avísame cuando esté disponible':'WhatsApp · Consultar producto'}</button>
+    ${!unavailable(p)?'<button type="button" class="primary cart-detail-btn" data-detail-action="cart-add">🛒 Agregar al carrito</button>':''}
     <div class="notice">Confirma disponibilidad, precio y entrega con la tienda.</div></div>`;
 }
 function openProduct(id) {
@@ -121,31 +131,100 @@ function openProduct(id) {
   renderDetails(p); modal.classList.add('show'); modal.setAttribute('aria-hidden','false');
 }
 function closeProduct() {modal.classList.remove('show');modal.setAttribute('aria-hidden','true');currentId=null;}
-function buyProduct(id) {
-  const p = getProduct(id); if(!p) return;
-  if(p.stock <= 0) {notify('Este producto está agotado.');return;}
-  const phone = String(settings.whatsapp||'').replace(/\D/g,'');
-  if(!/^\d{8,15}$/.test(phone)) {notify('El WhatsApp de la tienda aún no está configurado.');return;}
-  const selected = selection(p);
-  const text = `Hola, quiero consultar por ${p.name}${selected ? `, color ${selected}`:''}. Precio: ${money(p.price)}. ¿Está disponible y cómo sería la entrega?`;
-  window.open(`https://wa.me/${phone}?text=${encodeURIComponent(text)}`,'_blank','noopener,noreferrer');
+function waLink(message){
+  const phone=String(settings.whatsapp||'').replace(/\D/g,'');
+  if(!/^\d{8,15}$/.test(phone)){notify('Configura primero el WhatsApp de la tienda.');return;}
+  window.open(`https://wa.me/${phone}?text=${encodeURIComponent(message)}`,'_blank','noopener,noreferrer');
+}
+function buyProduct(id){
+  const p=getProduct(id);if(!p)return;
+  const color=selection(p);
+  const label=`${p.name} (Código: ${p.code})${color?', color '+color:''}`;
+  const message=unavailable(p)
+    ? `Hola, me interesa el producto ${label}, pero figura como AGOTADO. ¿Podrían avisarme cuando vuelva a estar disponible?`
+    : `Hola, quiero consultar por ${label}. Precio: ${money(p.price)}. ¿Está disponible y cómo sería la entrega?`;
+  waLink(message);
+}
+function cartTotal(){return cart.reduce((n,item)=>n+item.qty,0);}
+function saveCart(){localStorage.setItem('jcyg_cart_v2',JSON.stringify(cart));updateCartBadges();}
+function updateCartBadges(){document.querySelectorAll('.cart-count').forEach(el=>el.textContent=cartTotal());}
+function addToCart(id){
+  const p=getProduct(id);if(!p)return;if(unavailable(p)){notify('Producto agotado. Usa WhatsApp para pedir un aviso.');return;}
+  const color=selection(p), item=cart.find(i=>i.id===id&&i.color===color);
+  const selectedQty=cart.filter(i=>i.id===id).reduce((a,i)=>a+i.qty,0);
+  if(selectedQty>=p.stock){notify('No hay más unidades disponibles para agregar.');return;}
+  if(item)item.qty++;else cart.push({id,color,qty:1});
+  saveCart();notify('Producto agregado al carrito.');
+}
+function cartPanel(){
+  // El carrito solo guarda IDs, colores y unidades; siempre relee los datos actuales del catálogo.
+  cart=cart.filter(i=>getProduct(i.id));saveCart();
+  const rows=cart.map((item,i)=>{const p=getProduct(item.id);return `<div class="cart-row"><img src="${esc(safeImage(photoForColor(p,item.color)))}" alt=""><div class="cart-row-main"><b>${esc(p.name)}</b><small>${esc(p.code)}${item.color?' · '+esc(item.color):''}</small><span>${money(p.price)} × ${item.qty}</span>${unavailable(p)?'<em>Agotado: no se incluirá en la compra</em>':''}</div><div class="cart-controls"><button type="button" data-cart="minus" data-index="${i}" aria-label="Disminuir">−</button><b>${item.qty}</b><button type="button" data-cart="plus" data-index="${i}" aria-label="Aumentar">+</button><button type="button" data-cart="remove" data-index="${i}" aria-label="Quitar">✕</button></div></div>`}).join('');
+  const total=cart.reduce((n,i)=>{const p=getProduct(i.id);return n+(!unavailable(p)?p.price*i.qty:0)},0);
+  sheet.innerHTML=`<div class="detail-wrap cart-panel"><button class="close" type="button" data-cart="close">✕</button><h2>Tu carrito</h2><p class="muted">${cartTotal()} unidades agregadas</p>${rows||'<p class="muted">Todavía no agregaste productos.</p>'}<div class="cart-total"><b>Total estimado</b><b>${money(total)}</b></div><button type="button" class="primary whatsapp" data-cart="checkout" ${!cart.some(i=>!unavailable(getProduct(i.id)))?'disabled':''}>${waSvg} Enviar pedido por WhatsApp</button><p class="notice">El pedido se enviará por WhatsApp. No se cobra ni se reserva stock automáticamente.</p></div>`;
+  modal.classList.add('show');modal.setAttribute('aria-hidden','false');currentId=null;
+}
+function checkoutCart(){
+  const items=cart.map(i=>({...i,product:getProduct(i.id)})).filter(i=>i.product&&!unavailable(i.product));
+  if(!items.length){notify('No hay productos disponibles en tu carrito.');return;}
+  const total=items.reduce((n,i)=>n+i.product.price*i.qty,0);
+  const lines=items.map((i,k)=>`${k+1}. ${i.product.name} | Código: ${i.product.code}${i.color?' | Color: '+i.color:''} | Cantidad: ${i.qty} | Subtotal: ${money(i.product.price*i.qty)}`);
+  waLink(`Hola, quiero consultar este pedido de JCYG STORE:\n\n${lines.join('\n')}\n\nTOTAL ESTIMADO: ${money(total)}\n¿Pueden confirmar disponibilidad y entrega?`);
+}
+async function toggleLike(id){
+  if(!db||!sdk){notify('Espera a que conecte Firebase.');return;}
+  if(!getProduct(id))return;
+  const had=likes.has(id),next=!had;
+  // Bloqueo local mientras se completa la transacción.
+  if(likePending.has(id))return;likePending.add(id);
+  try{
+    const ref=sdk.doc(db,'productLikes',id);
+    await sdk.runTransaction(db,async tx=>{
+      const snap=await tx.get(ref);const old=Math.max(0,Number(snap.data()?.count)||0);
+      const count=Math.max(0,old+(next?1:-1));
+      tx.set(ref,{count});
+    });
+    if(next)likes.add(id);else likes.delete(id);
+    localStorage.setItem('jcyg_likes_v2',JSON.stringify([...likes]));
+    updateLikeButtons();
+  }catch(e){console.error('Me gusta:',e);notify('No se pudo actualizar el contador. Revisa las reglas de Firestore.');}
+  finally{likePending.delete(id);}
+}
+const likePending=new Set();
+function updateLikeButtons(){
+  for(const card of feed.querySelectorAll('.card')){
+    const id=card.dataset.id,btn=card.querySelector('[data-action="like"]');if(!btn)continue;
+    btn.classList.toggle('liked',likes.has(id));btn.setAttribute('aria-pressed',String(likes.has(id)));
+    const label=btn.querySelector('.likes-text');if(label)label.textContent=`♥ ${likeCounts.get(id)||0}`;
+  }
 }
 feed.addEventListener('click',(e) => {
   const btn = e.target.closest('[data-action]'); if(!btn) return;
   if(btn.dataset.action === 'admin') {openAdmin();return;}
   const card = btn.closest('.card'); if(!card) return;
   const id = card.dataset.id, action = btn.dataset.action;
-  if(action==='like') { likes.has(id)?likes.delete(id):likes.add(id);btn.classList.toggle('liked',likes.has(id)); }
+  if(action==='like') toggleLike(id);
   if(action==='details') openProduct(id);
   if(action==='buy') buyProduct(id);
+  if(action==='cart-add') addToCart(id);
   if(action==='color') {const p=getProduct(id);const c=p?.colors[Number(btn.dataset.colorIndex)];if(c)chooseColor(id,c.name);}
 });
 modal.addEventListener('click',e => {
   if(e.target===modal) {closeProduct();return;}
   const b=e.target.closest('[data-detail-action]'); if(!b) return;
+  const cb=e.target.closest('[data-cart]');
+  if(cb){
+    const action=cb.dataset.cart,index=Number(cb.dataset.index),item=cart[index];
+    if(action==='close')closeProduct();
+    if(action==='checkout')checkoutCart();
+    if(item){if(action==='remove')cart.splice(index,1);if(action==='minus'){item.qty--;if(item.qty<=0)cart.splice(index,1);}
+      if(action==='plus'){const p=getProduct(item.id),sum=cart.filter(i=>i.id===item.id).reduce((n,i)=>n+i.qty,0);if(!unavailable(p)&&sum<p.stock)item.qty++;else notify('Stock máximo alcanzado.');}
+      saveCart();cartPanel();}return;
+  }
   const p=getProduct(currentId);if(!p)return;
   if(b.dataset.detailAction==='close') closeProduct();
   if(b.dataset.detailAction==='buy') buyProduct(p.id);
+  if(b.dataset.detailAction==='cart-add'){addToCart(p.id);}
   if(b.dataset.detailAction==='color') {const c=p.colors[Number(b.dataset.colorIndex)];if(c)chooseColor(p.id,c.name);}
   if(b.dataset.detailAction==='photo') {
     photoIndex=Number(b.dataset.photoIndex);const src=p.photos[photoIndex]?.url || blankPhoto;
@@ -181,7 +260,7 @@ function renderAdmin() {
   adminContent.innerHTML=`<div class="admin-topline"><div><h2>Productos publicados</h2><p class="muted">Administra el inventario y el catálogo desde aquí.</p></div><button class="admin-primary" data-admin-action="new">＋ Agregar producto</button></div>
     ${adminTabs()}
     <div class="admin-product-list">${adminProducts.length ? adminProducts.map(p=>`<div class="admin-item">
-      <img src="${esc(safeImage(p.photos[0]?.url))}" alt="${esc(p.name)}"><div><div class="admin-item-title">${esc(p.name)}</div><div class="admin-item-sub">${money(p.price)} · ${p.stock} disponibles · ${p.photos.length}/10 fotos</div><div class="admin-item-status ${!p.published?'draft':''}">${p.published?'● Publicado':'● Borrador (no visible)'}</div></div>
+      <img src="${esc(safeImage(p.photos[0]?.url))}" alt="${esc(p.name)}"><div><div class="admin-item-title">${esc(p.name)}</div><div class="admin-item-sub">${esc(p.code)} · ${money(p.price)} · ${unavailable(p)?'AGOTADO':p.stock+' disponibles'} · ${p.photos.length}/10 fotos</div><div class="admin-item-status ${!p.published?'draft':''}">${p.published?'● Publicado':'● Borrador (no visible)'}</div></div>
       <div class="admin-actions"><button type="button" class="admin-secondary" data-admin-action="edit" data-id="${esc(p.id)}">Editar</button><button type="button" class="admin-danger" data-admin-action="delete" data-id="${esc(p.id)}">Eliminar</button></div>
     </div>`).join('') : '<div class="admin-note">No hay productos guardados en Firebase todavía. Puedes agregarlos o importar los tres productos de ejemplo.</div>'}</div>
     <div class="admin-actions" style="margin-top:15px"><button type="button" class="admin-secondary" data-admin-action="import">Importar los 3 productos de ejemplo</button></div>`;
@@ -201,16 +280,19 @@ function openEditor(id=null){
   editorPhotos=existing ? existing.photos.map((p,i)=>({...p,id:`saved-${i}`,file:null,preview:p.url})) : [];
   renderAdmin();
 }
+function makeCode(){return 'JCYG-'+(globalThis.crypto?.randomUUID?.().replace(/-/g,'').slice(0,8)||Math.random().toString(36).slice(2,10)).toUpperCase();}
 function renderEditor(){
   const p=adminProducts.find(x=>x.id===editId);
   adminContent.innerHTML=`<div class="admin-topline"><h2>${p?'Editar producto':'Agregar producto'}</h2><button type="button" class="admin-secondary" data-admin-action="cancel-editor">← Regresar</button></div>
   <form id="editor-form"><div class="admin-panel"><h3>Información principal</h3>
     <div class="editor-grid">
       <label class="admin-field span-all">Nombre del producto<input name="name" required maxlength="130" placeholder="Camioneta eléctrica infantil" value="${esc(p?.name||'')}"></label>
+      <label class="admin-field">Código del producto (editable)<input name="code" required maxlength="30" pattern="[A-Za-z0-9-]+" value="${esc(p?.code||makeCode())}" placeholder="JCYG-7A2D91"><small>Se genera automáticamente, pero puedes editarlo. Solo letras, números y guiones.</small></label>
       <label class="admin-field span-all">Descripción breve<textarea name="desc" maxlength="500" rows="3" placeholder="Luces LED · MP3 · USB · Control remoto">${esc(p?.desc||'')}</textarea></label>
       <label class="admin-field">Precio actual (S/)<input type="number" name="price" required min="0.01" step="0.01" value="${p?.price||''}" placeholder="850.00"></label>
       <label class="admin-field">Precio anterior (opcional)<input type="number" name="oldPrice" min="0" step="0.01" value="${p?.oldPrice||''}" placeholder="900.00"><small>Si es mayor al precio actual se mostrará el porcentaje de descuento.</small></label>
       <label class="admin-field">Cantidad disponible<input type="number" name="stock" required min="0" step="1" value="${p?.stock ?? 0}"></label>
+      <label class="admin-field">Disponibilidad<select name="outOfStock"><option value="false" ${!p?.outOfStock?'selected':''}>Disponible según stock</option><option value="true" ${p?.outOfStock?'selected':''}>Agotado (stock 0 y permitir aviso por WhatsApp)</option></select></label>
       <label class="admin-field">Estado<select name="published"><option value="true" ${p?.published!==false?'selected':''}>Publicado (visible)</option><option value="false" ${p?.published===false?'selected':''}>Borrador (oculto)</option></select></label>
     </div></div>
     <div class="admin-panel"><h3>Colores del producto</h3><p class="muted">Selecciona los colores que pueden elegir los compradores. Después, vincula cada foto a uno de ellos.</p>
@@ -356,8 +438,10 @@ async function saveProduct(form){
   if(saving)return;
   const status=$('save-status');const current=adminProducts.find(x=>x.id===editId);
   const name=form.elements.name.value.trim(),desc=form.elements.desc.value.trim();
-  const price=Number(form.elements.price.value),oldPrice=Number(form.elements.oldPrice.value||0),stock=Number(form.elements.stock.value);
+  const price=Number(form.elements.price.value),oldPrice=Number(form.elements.oldPrice.value||0),outOfStock=form.elements.outOfStock.value==='true',stock=outOfStock?0:Number(form.elements.stock.value),code=form.elements.code.value.trim().toUpperCase();
   if(!name || !Number.isFinite(price) || price<=0 || !Number.isInteger(stock) || stock<0){status.textContent='Revisa nombre, precio y cantidad disponible.';return;}
+  if(!/^[A-Z0-9-]{3,30}$/.test(code)){status.textContent='Código inválido: usa entre 3 y 30 letras, números o guiones.';return;}
+  if(adminProducts.some(p=>p.id!==editId&&p.code.toUpperCase()===code)){status.textContent='Ya existe un producto con ese código.';return;}
   if(oldPrice<0 || !Number.isFinite(oldPrice)){status.textContent='El precio anterior no es válido.';return;}
   if(oldPrice>0 && oldPrice<=price){status.textContent='El precio anterior debe ser superior al actual para indicar descuento, o déjalo en blanco.';return;}
   if(editorPhotos.length>10){status.textContent='Puedes agregar como máximo 10 fotografías por producto.';return;}
@@ -390,7 +474,7 @@ async function saveProduct(form){
       } else photos.push({url:pic.url,path:pic.path||'',color:pic.color||''});
     }
     status.textContent='Guardando producto en Firebase Firestore…';
-    const payload={name,desc,price,oldPrice,stock,published:form.elements.published.value==='true',
+    const payload={name,code,desc,price,oldPrice,stock,outOfStock,published:form.elements.published.value==='true',
       colors:editorColors.map(c=>({...c})),photos,specs:parseSpecs(form.elements.specs.value),updatedAt:sdk.serverTimestamp()};
     await sdk.setDoc(productRef,payload,{merge:true});
     const removed=(current?.photos||[]).map(p=>p.path).filter(path=>isCloudinaryPublicId(path)&&!photos.some(p=>p.path===path));
@@ -408,7 +492,7 @@ function returnToProductsAfterSave(){clearPhotoPreviews();editorPhotos=[];editor
 async function deleteProduct(id){
   const p=adminProducts.find(x=>x.id===id);if(!p)return;
   if(!confirm(`¿Eliminar definitivamente «${p.name}» del catálogo?`))return;
-  try {await sdk.deleteDoc(sdk.doc(db,'products',id));notify('Producto eliminado.');for(const ph of p.photos) await removeCloudinaryPhoto(ph.path);}
+  try {const batch=sdk.writeBatch(db);batch.delete(sdk.doc(db,'products',id));batch.delete(sdk.doc(db,'productLikes',id));await batch.commit();cart=cart.filter(item=>item.id!==id);saveCart();likes.delete(id);localStorage.setItem('jcyg_likes_v2',JSON.stringify([...likes]));notify('Producto eliminado.');for(const ph of p.photos) await removeCloudinaryPhoto(ph.path);}
   catch(e){notify(`Error al eliminar: ${e.code||e.message}`);}
 }
 async function importSamples(){
@@ -418,7 +502,7 @@ async function importSamples(){
     for(const item of SAMPLE_PRODUCTS){
       if(adminProducts.some(p=>p.id===item.id))continue;
       const {id,...data}=item;
-      batch.set(sdk.doc(db,'products',id),{...data,updatedAt:sdk.serverTimestamp()});
+      batch.set(sdk.doc(db,'products',id),{...data,code:data.code||makeCode(),updatedAt:sdk.serverTimestamp()});
     }
     await batch.commit();notify('Productos de ejemplo importados.');
   }catch(e){notify(`No se pudieron importar: ${e.code||e.message}`);}
@@ -506,8 +590,9 @@ async function initFirebase(){
     const firebaseApp=app.initializeApp(firebaseConfig);
     db=firestore.getFirestore(firebaseApp);auth=authMod.getAuth(firebaseApp);
     unsubscribePublic=firestore.onSnapshot(firestore.query(firestore.collection(db,'products'),firestore.where('published','==',true)),
-      snap=>{products=snap.docs.map(d=>normalize({id:d.id,...d.data()})).sort((a,b)=>a.name.localeCompare(b.name,'es'));renderFeed();},
+      snap=>{products=snap.docs.map(d=>normalize({id:d.id,...d.data()})).sort((a,b)=>a.name.localeCompare(b.name,'es'));cart=cart.filter(i=>products.some(p=>p.id===i.id));saveCart();renderFeed();},
       err=>{console.error('Firestore productos:',err);notify('No se pudo cargar el catálogo. Revisa Firestore y sus reglas.');});
+    unsubscribeLikes=firestore.onSnapshot(firestore.collection(db,'productLikes'), snap=>{likeCounts=new Map(snap.docs.map(d=>[d.id,Math.max(0,Number(d.data().count)||0)]));updateLikeButtons();},err=>console.warn('Contadores:',err));
     unsubscribeSettings=firestore.onSnapshot(firestore.doc(db,'settings','storefront'),snap=>{settings={whatsapp:snap.exists()?String(snap.data().whatsapp||''):''};},
       err=>console.error('Firestore WhatsApp:',err));
     authMod.onAuthStateChanged(auth,user=>{
