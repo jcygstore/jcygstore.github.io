@@ -252,3 +252,90 @@ html,body{background:#f8fbff}
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
 }
+
+
+/* JCYG STORE — galería horizontal integrada en cada producto.
+   Scroll nativo, sin animaciones adicionales ni cambio en el desplazamiento vertical. */
+.product-stage .product-gallery {
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  display: flex;
+  align-items: stretch;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-snap-type: x mandatory;
+  scroll-snap-stop: normal;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-x pan-y;
+  scrollbar-width: none;
+  outline-offset: -4px;
+}
+.product-stage .product-gallery::-webkit-scrollbar { display:none; }
+.product-stage .product-slide {
+  flex: 0 0 100%;
+  height: 100%;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  scroll-snap-align: start;
+}
+/* Reutiliza las dimensiones exactas de la fotografía en la versión anterior. */
+.feed > .card .product-slide img {
+  width: 90%;
+  height: 90%;
+  max-width: 810px;
+  max-height: 684px;
+  object-fit: contain;
+  object-position: center;
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+.product-gallery-dots {
+  position: absolute;
+  left: 50%;
+  bottom: -7px;
+  z-index: 3;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  max-width: min(96%,340px);
+}
+.product-gallery-dots .photo-dot {
+  width: 22px;
+  height: 25px;
+  flex: 0 0 22px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+.product-gallery-dots .photo-dot span {
+  display: block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #8a94aa;
+  opacity: .65;
+  transition: background .16s ease, transform .16s ease, opacity .16s ease;
+}
+.product-gallery-dots .photo-dot.selected span {
+  transform: scale(1.4);
+  background: #6651d9;
+  opacity: 1;
+}
+.product-gallery-dots .photo-dot:focus-visible {
+  outline: 2px solid #6651d9;
+  border-radius: 8px;
+}
+@media (max-width: 540px){
+  .product-gallery-dots { bottom: -10px; }
+  .product-gallery-dots .photo-dot { width: 20px; flex-basis: 20px; }
+}

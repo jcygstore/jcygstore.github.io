@@ -38,6 +38,8 @@ const heartSvg = `<svg width="29" height="29" viewBox="0 0 24 24" fill="none" st
 const waSvg = `<svg width="29" height="29" viewBox="0 0 32 32" aria-hidden="true" fill="currentColor"><path d="M16 .8A15.2 15.2 0 0 0 2.8 23.5L.9 31l7.7-2a15.2 15.2 0 1 0 7.4-28.2Zm0 27.5c-2.2 0-4.3-.6-6.2-1.7l-.5-.3-4.5 1.2L6 23l-.3-.5a12.3 12.3 0 1 1 10.3 5.8Zm6.8-9.2c-.4-.2-2.3-1.1-2.7-1.3-.4-.1-.6-.2-.9.2s-1 1.3-1.2 1.5c-.2.2-.4.3-.8.1-.4-.2-1.6-.6-3.1-1.9-1.1-1-1.8-2.2-2-2.6-.2-.4 0-.6.1-.8l.6-.7c.2-.2.3-.4.4-.7.1-.2.1-.5 0-.7-.1-.2-.9-2.2-1.2-3-.3-.7-.6-.6-.9-.6h-.8c-.3 0-.7.1-1 .5-.4.4-1.4 1.4-1.4 3.4s1.4 3.9 1.6 4.2c.2.3 2.8 4.3 6.8 6 .9.4 1.7.6 2.2.8.9.3 1.7.2 2.4.1.7-.1 2.3-.9 2.6-1.8.3-.9.3-1.7.2-1.8-.1-.2-.4-.3-.8-.5Z"/></svg>`;
 // Carrito general sin signo +; Añadir al carrito usa el icono con signo +.
 const cartSvg = `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2 2h2l2.5 12.5a2 2 0 0 0 2 1.5h10a2 2 0 0 0 2-1.5L22 7H5"/></svg>`;
+// Icono minimalista para Detalles: tres puntos horizontales.
+const detailsSvg = `<svg width="28" height="28" viewBox="0 0 24 24" aria-hidden="true" fill="currentColor"><circle cx="5" cy="12" r="2.05"/><circle cx="12" cy="12" r="2.05"/><circle cx="19" cy="12" r="2.05"/></svg>`;
 const cartPlusSvg = `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2 2h2l2.5 12.5a2 2 0 0 0 2 1.5h10a2 2 0 0 0 2-1.5L22 7H5"/><path d="M16 2v6m-3-3h6" stroke-width="2.3"/></svg>`;
 let sdk = null, db = null, auth = null, activeUser = null;
 let unsubscribePublic = null, unsubscribeAdmin = null, unsubscribeSettings = null;
@@ -104,8 +106,15 @@ function renderFeed() {
   }
   feed.innerHTML = products.map((p, index) => {
     const selected = selection(p), off = discount(p);
+    const photos = p.photos.length ? p.photos : [{url:blankPhoto,color:''}];
+    const initialPhoto = Math.max(0, selected ? photos.findIndex(ph=>ph.color===selected) : 0);
     return `<article class="card" data-id="${esc(p.id)}">
-      <div class="product-stage"><img src="${esc(displayPhoto(photoForColor(p,selected)))}" data-image-fallback="allowed" alt="${esc(p.name)}" loading="${index < 2 ? 'eager' : 'lazy'}" decoding="async" fetchpriority="${index === 0 ? 'high' : 'auto'}"></div>
+      <div class="product-stage">
+        <div class="product-gallery" tabindex="0" role="region" aria-roledescription="carrusel" aria-label="Fotos de ${esc(p.name)}. Desliza a la izquierda o derecha" data-current-photo="${initialPhoto}" data-start-photo="${initialPhoto}">
+          ${photos.map((ph,i)=>`<div class="product-slide"><img src="${esc(displayPhoto(ph.url))}" data-image-fallback="allowed" alt="${esc(p.name)} · foto ${i+1} de ${photos.length}" loading="${index < 2 && (i===initialPhoto || i===Math.min(photos.length-1,initialPhoto+1)) ? 'eager' : 'lazy'}" decoding="async" ${index===0&&i===initialPhoto?'fetchpriority="high"':''}></div>`).join('')}
+        </div>
+        ${photos.length > 1 ? `<div class="product-gallery-dots" role="group" aria-label="Cambiar foto">${photos.map((ph,i)=>`<button type="button" class="photo-dot ${i===initialPhoto?'selected':''}" data-action="photo-dot" data-photo-index="${i}" aria-pressed="${i===initialPhoto}" aria-label="Ver foto ${i+1} de ${photos.length}"><span></span></button>`).join('')}</div>` : ''}
+      </div>
       <div class="shade"></div>${header()}
       ${firebaseReady ? '' : '<div class="sample-banner">Catálogo de ejemplo · Firebase pendiente</div>'}
       <div class="info"><div class="eyebrow">JCYG STORE</div><div class="name">${esc(p.name)}</div><div class="product-code">Código: ${esc(p.code)}</div><div class="desc">${esc(p.desc)}</div>
@@ -114,7 +123,7 @@ function renderFeed() {
         </div><div class="price"><span class="currency">Precio</span><strong>${money(p.price)}</strong>${off ? `<del>${money(p.oldPrice)}</del><span class="discount">-${off}%</span>` : ''}</div>
       </div><div class="actions">
         <button class="act ${likes.has(p.id)?'liked':''}" type="button" data-action="like" aria-label="Me gusta" aria-pressed="${likes.has(p.id)}"><span class="ico heart-ico">${heartSvg}</span><small class="likes-text">${likeCounts.get(p.id)||0}</small></button>
-        <button class="act" type="button" data-action="details" aria-label="Ver características"><span class="ico">＋</span><small>Detalles</small></button>
+        <button class="act" type="button" data-action="details" aria-label="Ver características"><span class="ico">${detailsSvg}</span><small>Detalles</small></button>
         <button class="act consult-side" type="button" data-action="consult" aria-label="Consultar por WhatsApp"><span class="ico">${waSvg}</span><small>Consultar</small></button>
         <button class="act cart-side" type="button" data-action="cart-add" aria-label="Añadir al carrito" ${unavailable(p)?'disabled title="Producto agotado"':''}><span class="ico">${cartPlusSvg}</span><small>Añadir</small></button>
       </div></article>`;
@@ -125,13 +134,45 @@ function renderFeed() {
     cards.forEach(c => watcher.observe(c));
   }
   if(cards[0]) cards[0].classList.add('active');
+  // Restaurar la foto correspondiente al color escogido cuando se redibuja el catálogo.
+  for(const card of cards){
+    const gallery=card.querySelector('.product-gallery');
+    const initial=Number(gallery?.dataset.startPhoto||0);
+    if(initial>0) gallery.scrollLeft=initial*gallery.clientWidth;
+  }
 }
+function updateGalleryDots(card,index){
+  const gallery=card?.querySelector('.product-gallery');if(!gallery)return;
+  const length=gallery.querySelectorAll('.product-slide').length;
+  const safeIndex=Math.max(0,Math.min(length-1,index));
+  if(Number(gallery.dataset.currentPhoto)===safeIndex)return;
+  gallery.dataset.currentPhoto=String(safeIndex);
+  card.querySelectorAll('.photo-dot').forEach((dot,i)=>{
+    const current=i===safeIndex;
+    dot.classList.toggle('selected',current);
+    dot.setAttribute('aria-pressed',String(current));
+  });
+}
+function showCardPhoto(card,index,animated=false){
+  const gallery=card?.querySelector('.product-gallery');if(!gallery)return;
+  const length=gallery.querySelectorAll('.product-slide').length;
+  const safeIndex=Math.max(0,Math.min(length-1,index));
+  gallery.scrollTo({left:safeIndex*gallery.clientWidth,behavior:animated?'smooth':'instant'});
+  updateGalleryDots(card,safeIndex);
+}
+// El carrusel usa desplazamiento nativo; el scroll vertical sigue perteneciendo al catálogo.
+feed.addEventListener('scroll',event=>{
+  const gallery=event.target;
+  if(!gallery.classList?.contains('product-gallery')||!gallery.clientWidth)return;
+  updateGalleryDots(gallery.closest('.card'),Math.round(gallery.scrollLeft/gallery.clientWidth));
+},true);
 function chooseColor(id, color) {
   const p = getProduct(id); if(!p || !p.colors.some(c => c.name===color)) return;
   chosenColors.set(id,color);
   const card = [...feed.querySelectorAll('.card')].find(c => c.dataset.id === id);
   if(card) {
-    const img = card.querySelector('.product-stage img'); if(img) { img.dataset.imageFallback='allowed'; img.src = displayPhoto(photoForColor(p,color)); }
+    const matchIndex=p.photos.findIndex(ph=>ph.color===color);
+    if(matchIndex>=0) showCardPhoto(card,matchIndex);
     card.querySelectorAll('[data-color-index]').forEach(btn => btn.classList.toggle('selected',p.colors[Number(btn.dataset.colorIndex)]?.name===color));
   }
   if(currentId === id && modal.classList.contains('show')) { photoIndex = Math.max(0,p.photos.findIndex(ph => ph.color===color)); renderDetails(p); }
@@ -244,6 +285,7 @@ feed.addEventListener('click',(e) => {
   const card = btn.closest('.card'); if(!card) return;
   const id = card.dataset.id, action = btn.dataset.action;
   if(action==='like') toggleLike(id);
+  if(action==='photo-dot'){showCardPhoto(card,Number(btn.dataset.photoIndex),true);return;}
   if(action==='details') openProduct(id);
   if(action==='consult') consultProduct(id);
   if(action==='cart-add') addToCart(id);
@@ -287,7 +329,7 @@ function renderAdmin() {
   }
   if(!sdk) {adminContent.innerHTML = '<div class="login-wrap"><h2>Conectando con Firebase…</h2><p>Comprueba tu conexión a internet.</p></div>';return;}
   if(!activeUser) {
-    adminContent.innerHTML=`<div class="login-wrap"><h2>Acceso de administrador</h2><p>Introduce el correo y la contraseña del usuario creado en Firebase Authentication.</p>
+    adminContent.innerHTML=`<div class="login-wrap"><h2>Acceso de administrador</h2>
       <form id="login-form"><label class="admin-field">Correo administrador<input required autocomplete="username" type="email" name="email"></label>
       <label class="admin-field" style="margin-top:14px">Contraseña<input required autocomplete="current-password" type="password" name="password" minlength="6"></label>
       <button class="admin-primary" type="submit" style="margin-top:19px;width:100%">Ingresar al panel</button><div id="login-status" aria-live="polite"></div></form></div>`;return;
@@ -353,7 +395,7 @@ function renderEditor(){
   <form id="editor-form"><div class="admin-panel"><h3>Información principal</h3>
     <div class="editor-grid">
       <label class="admin-field span-all">Nombre del producto<input name="name" required maxlength="130" value="${esc(p?.name||'')}"></label>
-      <label class="admin-field">Código del producto (editable)<input name="code" maxlength="7" minlength="7" pattern="[Jj][Ss]-[0-9]{4}" value="${esc(p?.code&&CODE_PATTERN.test(p.code)?p.code:'')}" autocapitalize="characters"></label>
+      <label class="admin-field">Código del producto (automático, editable)<input name="code" maxlength="7" minlength="7" pattern="[Jj][Ss]-[0-9]{4}" value="${esc(p?.code&&CODE_PATTERN.test(p.code)?p.code:(editorAutoCode||''))}" autocapitalize="characters"></label>
       <label class="admin-field span-all">Descripción breve<textarea name="desc" maxlength="500" rows="3">${esc(p?.desc||'')}</textarea></label>
       <label class="admin-field">Precio actual (S/)<input type="number" name="price" required min="0.01" step="0.01" value="${p?.price||''}"></label>
       <label class="admin-field">Precio anterior (opcional)<input type="number" name="oldPrice" min="0" step="0.01" value="${p?.oldPrice||''}"></label>
@@ -371,11 +413,6 @@ function renderEditor(){
       <label class="admin-field">Seleccionar fotografías
         <input id="product-photos" type="file" accept="image/png,.png" multiple></label>
       
-      <details style="margin-top:12px"><summary style="cursor:pointer">¿Ya tengo una foto en GitHub? Añadir por enlace</summary>
-        <label class="admin-field" style="margin-top:9px">Ruta de imagen en GitHub
-          <input id="photo-url" type="text" inputmode="url" spellcheck="false" autocomplete="off"></label>
-        <button type="button" class="admin-secondary" data-admin-action="add-photo-url" style="margin-top:9px">＋ Agregar por enlace</button>
-      </details>
       <div id="editor-photos" class="photo-list"></div></div>
     <div class="admin-panel"><h3>Características completas</h3><label class="admin-field">Una característica por línea, con formato Nombre: Detalle
       <textarea name="specs" rows="9">${esc((p?.specs||[]).map(s=>`${s.label}: ${s.value}`).join('\n'))}</textarea>
@@ -565,14 +602,14 @@ async function saveProduct(form){
   const price=Number(form.elements.price.value),oldPrice=Number(form.elements.oldPrice.value||0),outOfStock=form.elements.outOfStock.value==='true',stock=outOfStock?0:Number(form.elements.stock.value),code=form.elements.code.value.trim().toUpperCase();
   if(!name || !Number.isFinite(price) || price<=0 || !Number.isInteger(stock) || stock<0){status.textContent='Revisa nombre, precio y cantidad disponible.';return;}
   if((code || current) && (!CODE_PATTERN.test(code) || numberFromCode(code)===0)){status.textContent='El código debe comenzar con JS- seguido de cuatro números.';return;}
-  if(adminProducts.some(p=>p.id!==editId&&p.code.toUpperCase()===code)){status.textContent='Ya existe un producto con ese código.';return;}
+  if(adminProducts.some(p=>p.id!==editId&&p.code.toUpperCase()===code) && (current || code!==editorAutoCode)){status.textContent='Ya existe un producto con ese código.';return;}
   if(oldPrice<0 || !Number.isFinite(oldPrice)){status.textContent='El precio anterior no es válido.';return;}
   if(oldPrice>0 && oldPrice<=price){status.textContent='El precio anterior debe ser superior al actual para indicar descuento, o déjalo en blanco.';return;}
   if(editorPhotos.length>10){status.textContent='Puedes agregar como máximo 10 fotografías por producto.';return;}
   // Los archivos elegidos aún no tienen URL: se suben a Cloudinary antes de guardar.
-  // Solo las fotografías agregadas por enlace necesitan validación de URL.
+  // Se conservan las URL de fotografías existentes; las nuevas se suben como archivos.
   if(editorPhotos.some(pic => !pic.file && !( /^https:\/\//i.test(pic.url) || /^assets\/[\w.-]+\.(?:jpg|jpeg|png|webp|svg)$/i.test(pic.url)))) {
-    status.textContent='Hay una ruta de imagen no válida. Usa assets/nombre.jpg o una URL HTTPS.';
+    status.textContent='Hay una fotografía guardada con una ruta no válida.';
     return;
   }
   if(editorPhotos.some(pic=>pic.file) && !workerReady()){
@@ -673,27 +710,6 @@ adminContent.addEventListener('click', async e=>{
     const c=editorColors.splice(Number(b.dataset.index),1)[0];if(c)editorPhotos.forEach(ph=>{if(ph.color===c.name)ph.color='';});
     renderSelectedColors();renderEditorPhotos();return;
   }
-  if(act==='add-photo-url'){
-    const input=$('photo-url');const url=String(input?.value||'').trim();
-    if(editorPhotos.length>=10){notify('Puedes agregar como máximo 10 fotos por producto.');return;}
-    if(!(/^https:\/\//i.test(url)||/^assets\/[\w.-]+\.(?:jpg|jpeg|png|webp|svg)$/i.test(url))){
-      notify('Usa una ruta como assets/camioneta-roja.jpg, sin espacios ni tildes.');return;
-    }
-    b.disabled=true;const original=b.textContent;b.textContent='Comprobando imagen…';
-    try{
-      await new Promise((resolve,reject)=>{
-        const img=new Image();let settled=false;
-        const timer=setTimeout(()=>{if(!settled){settled=true;reject(new Error('Tiempo agotado'));}},12000);
-        img.onload=()=>{if(!settled){settled=true;clearTimeout(timer);resolve();}};
-        img.onerror=()=>{if(!settled){settled=true;clearTimeout(timer);reject(new Error('Imagen no encontrada'));}};
-        img.src=url;
-      });
-      editorPhotos.push({id:crypto.randomUUID(),url,path:'',color:'',file:null,preview:url});
-      input.value='';renderEditorPhotos();
-    }catch(e){notify('No se pudo abrir la foto. Revisa el nombre en assets y espera a que GitHub Pages publique el archivo.');}
-    finally{b.disabled=false;b.textContent=original;}
-    return;
-  }
   if(act==='remove-photo'){
     const index=editorPhotos.findIndex(ph=>ph.id===b.dataset.photoId);if(index>=0){
       const [ph]=editorPhotos.splice(index,1);if(ph.preview?.startsWith('blob:'))URL.revokeObjectURL(ph.preview);renderEditorPhotos();
@@ -723,6 +739,11 @@ async function initFirebase(){
       if(isAdmin()){
         firestore.getDoc(firestore.doc(db,'settings','productCodes')).then(snap=>{
           lastKnownProductNumber=Math.max(lastKnownProductNumber,Number(snap.data()?.lastNumber)||0);
+          if(adminTab==='editor' && !editId && editorAutoCode){
+            const input=adminContent.querySelector('#editor-form [name="code"]');
+            const expected=formattedCode(nextCodeNumber());
+            if(input && input.value===editorAutoCode){input.value=expected;editorAutoCode=expected;}
+          }
         }).catch(err=>console.warn('Secuencia de productos:',err));
         unsubscribeAdmin=firestore.onSnapshot(firestore.collection(db,'products'),
           snap=>{adminProducts=snap.docs.map(d=>normalize({id:d.id,...d.data()})).sort((a,b)=>a.name.localeCompare(b.name,'es'));if(adminOverlay.classList.contains('show')&&adminTab==='products')renderAdmin();},
