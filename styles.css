@@ -190,3 +190,65 @@ html,body{background:#f8fbff}
 
 /* Consultar: letras en negro, sin cambiar fondo verde ni icono. */
 .primary.whatsapp{color:#111!important}
+
+
+/* JCYG STORE — desplazamiento fluido en celulares y PC.
+   Mantiene el scroll por fichas, tamaño de fotos y colores actuales.
+   Detiene filtros y animaciones que causaban repintado durante el gesto. */
+.feed {
+  scroll-behavior: auto;
+  scroll-snap-type: y mandatory;
+  -webkit-overflow-scrolling: touch;
+}
+/* Cada ficha ocupa exactamente la pantalla, incluso en móviles compactos. */
+.feed > .card {
+  height: 100dvh;
+  min-height: 0;
+  scroll-snap-align: start;
+  scroll-snap-stop: normal;
+  animation: none !important;
+  transform: none !important;
+}
+/* Aurora colorida estática, sin desenfoques animados a pantalla completa. */
+.feed > .card::before,
+.feed > .card.active::before {
+  animation: none !important;
+  filter: none !important;
+  transform: none !important;
+}
+.feed > .card::after {
+  filter: none !important;
+}
+/* Producto visible mientras se mueve la ficha: sin reentradas, saltos ni parpadeos. */
+.feed > .card .product-stage img,
+.feed > .card.active .product-stage img,
+.feed > .card.active .product-stage img:hover {
+  opacity: 1 !important;
+  transform: none !important;
+  translate: none !important;
+  animation: none !important;
+  transition: none !important;
+  filter: drop-shadow(0 14px 18px #65758b25) !important;
+  will-change: auto !important;
+}
+.feed > .card.active .info {
+  animation: none !important;
+  filter: none !important;
+}
+/* Información, controles y encabezado siempre listos durante el gesto. */
+.feed > .card .top,
+.feed > .card .actions,
+.feed > .card .eyebrow,
+.feed > .card .name,
+.feed > .card .desc,
+.feed > .card .price {
+  opacity: 1 !important;
+  transform: none !important;
+  transition: none !important;
+}
+/* El vidrio difuminado no necesita recalcularse cada vez que deslizas. */
+.feed .ico,
+.feed .tag {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}

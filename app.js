@@ -102,10 +102,10 @@ function renderFeed() {
     feed.innerHTML = `<section class="no-products"><div class="empty-center"><img src="${logoPath}" alt="JCYG STORE"><h2>Pronto tendremos novedades</h2><p>Estamos preparando nuestro catálogo de productos.</p><button class="tag admin-entry" data-action="admin" type="button">Catálogo 2026 · Administrador</button></div></section>`;
     return;
   }
-  feed.innerHTML = products.map(p => {
+  feed.innerHTML = products.map((p, index) => {
     const selected = selection(p), off = discount(p);
     return `<article class="card" data-id="${esc(p.id)}">
-      <div class="product-stage"><img src="${esc(displayPhoto(photoForColor(p,selected)))}" data-image-fallback="allowed" alt="${esc(p.name)}" loading="${p === products[0] ? 'eager' : 'lazy'}"></div>
+      <div class="product-stage"><img src="${esc(displayPhoto(photoForColor(p,selected)))}" data-image-fallback="allowed" alt="${esc(p.name)}" loading="${index < 2 ? 'eager' : 'lazy'}" decoding="async" fetchpriority="${index === 0 ? 'high' : 'auto'}"></div>
       <div class="shade"></div>${header()}
       ${firebaseReady ? '' : '<div class="sample-banner">Catálogo de ejemplo · Firebase pendiente</div>'}
       <div class="info"><div class="eyebrow">JCYG STORE</div><div class="name">${esc(p.name)}</div><div class="product-code">Código: ${esc(p.code)}</div><div class="desc">${esc(p.desc)}</div>
