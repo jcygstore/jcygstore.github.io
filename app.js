@@ -60,6 +60,23 @@ const safeImage = (url) => {
   const s = String(url || '');
   return (/^https:\/\//i.test(s) || /^assets\/[\w.-]+\.(webp|png|jpg|jpeg|svg)$/i.test(s) || /^blob:/i.test(s)) ? s : blankPhoto;
 };
+const safeVideo = url => /^https:\/\/res\.cloudinary\.com\/[^/]+\/video\/upload\/[^\s]+\.mp4(?:\?[^\s]*)?$/i.test(String(url||'')) ? String(url) : '';
+const isVideo = item => item?.type === 'video';
+const mainImage = p => p.photos.find(item=>!isVideo(item))?.url || blankPhoto;
+const pausedVideosExcept = except => {
+  document.querySelectorAll('video.jcyg-product-video').forEach(v=>{if(v!==except&&!v.paused)v.pause();});
+};
+function mediaSlideHTML(item, name, i, total, eager=false, priority=false){
+  if(isVideo(item))return `<video class="jcyg-product-video" controls playsinline preload="none" aria-label="${esc(name)} · video ${i+1} de ${total}" src="${esc(safeVideo(item.url))}"></video>`;
+  return `<img src="${esc(displayPhoto(item.url))}" data-image-fallback="allowed" alt="${esc(name)} · foto ${i+1} de ${total}" loading="${eager?'eager':'lazy'}" decoding="async" ${priority?'fetchpriority="high"':''}>`;
+}
+function detailMediaHTML(item,name){
+  if(isVideo(item))return `<video id="detail-photo" class="gallery-main detail-video jcyg-product-video" controls playsinline preload="none" src="${esc(safeVideo(item.url))}" aria-label="Video de ${esc(name)}"></video>`;
+  return `<img class="gallery-main" id="detail-photo" data-image-fallback="allowed" src="${esc(displayPhoto(item.url))}" alt="${esc(name)}">`;
+}
+function mediaThumbHTML(item,name){
+  return isVideo(item) ? `<span class="video-thumb-placeholder" aria-hidden="true">▶ Video</span>` : `<img data-image-fallback="allowed" src="${esc(displayPhoto(item.url))}" alt="${esc(name)}">`;
+}
 const validColor = (s) => /^#[a-fA-F0-9]{6}$/.test(String(s || '')) ? s : '#cbd5e1';
 // Presentación: recorta visualmente márgenes transparentes de PNG existentes
 // almacenados en Cloudinary, sin cambiar el enlace original en Firestore.
@@ -90,7 +107,7 @@ const normalize = (doc) => ({
   oldPrice:Number(doc.oldPrice) || 0, published:doc.published !== false, outOfStock:Boolean(doc.outOfStock) || Number(doc.stock)===0, code:String(doc.code||'Sin asignar'),
   stockByColor:doc.stockByColor === true,
   colors:Array.isArray(doc.colors) ? doc.colors.map(c => ({name:String(c.name || '').slice(0,35),hex:validColor(c.hex),qty:Math.max(0,Math.floor(Number(c.qty)||0))})) : [],
-  photos:Array.isArray(doc.photos) ? doc.photos.slice(0,10).map(p => ({url:safeImage(p.url),path:String(p.path || ''),color:String(p.color || '')})) : [],
+  photos:Array.isArray(doc.photos) ? doc.photos.slice(0,10).map(p => ({type:p.type==='video'?'video':'image',url:p.type==='video'?safeVideo(p.url):safeImage(p.url),path:String(p.path || ''),color:String(p.color || '')})).filter(p=>p.url) : [],
   specs:Array.isArray(doc.specs) ? doc.specs.map(s => ({label:String(s.label || 'Detalle'),value:String(s.value || '')})) : []
 });
 const getProduct = id => products.find(p => p.id === id);
@@ -106,7 +123,7 @@ const colorAvailability = (p,color) => p.stockByColor && p.colors.length
   ? Math.max(0,Number(p.colors.find(c=>c.name===color)?.qty)||0)
   : Math.max(0,Number(p.stock)||0);
 const colorSoldOut = (p,c) => p.stockByColor && c.qty<=0;
-function photoForColor(p, color) { return p.photos.find(ph => ph.color === color && color)?.url || p.photos[0]?.url || blankPhoto; }
+function photoForColor(p, color) { return p.photos.find(ph => !isVideo(ph) && ph.color === color && color)?.url || mainImage(p); }
 const unavailable = p => p.outOfStock || p.stock<=0;
 const discount = p => p.oldPrice > p.price && p.price > 0 ? Math.round((1-p.price/p.oldPrice)*100) : 0;
 function header() {
@@ -124,10 +141,10 @@ function renderFeed() {
     const initialPhoto = Math.max(0, selected ? photos.findIndex(ph=>ph.color===selected) : 0);
     return `<article class="card" data-id="${esc(p.id)}">
       <div class="product-stage">
-        <div class="product-gallery" tabindex="0" role="region" aria-roledescription="carrusel" aria-label="Fotos de ${esc(p.name)}. Desliza a la izquierda o derecha" data-current-photo="${initialPhoto}" data-start-photo="${initialPhoto}">
-          ${photos.map((ph,i)=>`<div class="product-slide"><img src="${esc(displayPhoto(ph.url))}" data-image-fallback="allowed" alt="${esc(p.name)} · foto ${i+1} de ${photos.length}" loading="${index < 2 && (i===initialPhoto || i===Math.min(photos.length-1,initialPhoto+1)) ? 'eager' : 'lazy'}" decoding="async" ${index===0&&i===initialPhoto?'fetchpriority="high"':''}></div>`).join('')}
+        <div class="product-gallery" tabindex="0" role="region" aria-roledescription="carrusel" aria-label="Fotos y videos de ${esc(p.name)}. Desliza a la izquierda o derecha" data-current-photo="${initialPhoto}" data-start-photo="${initialPhoto}">
+          ${photos.map((ph,i)=>`<div class="product-slide">${mediaSlideHTML(ph,p.name,i,photos.length,index < 2 && (i===initialPhoto || i===Math.min(photos.length-1,initialPhoto+1)),index===0&&i===initialPhoto)}</div>`).join('')}
         </div>
-        ${photos.length > 1 ? `<div class="product-gallery-dots" role="group" aria-label="Cambiar foto">${photos.map((ph,i)=>`<button type="button" class="photo-dot ${i===initialPhoto?'selected':''}" data-action="photo-dot" data-photo-index="${i}" aria-pressed="${i===initialPhoto}" aria-label="Ver foto ${i+1} de ${photos.length}"><span></span></button>`).join('')}</div>` : ''}
+        ${photos.length > 1 ? `<div class="product-gallery-dots" role="group" aria-label="Cambiar imagen o video">${photos.map((ph,i)=>`<button type="button" class="photo-dot ${i===initialPhoto?'selected':''}" data-action="photo-dot" data-photo-index="${i}" aria-pressed="${i===initialPhoto}" aria-label="Ver ${isVideo(ph)?'video':'foto'} ${i+1} de ${photos.length}"><span></span></button>`).join('')}</div>` : ''}
       </div>
       <div class="shade"></div>${header()}
       ${firebaseReady ? '' : '<div class="sample-banner">Catálogo de ejemplo · Firebase pendiente</div>'}
@@ -144,7 +161,7 @@ function renderFeed() {
   }).join('');
   const cards = [...feed.querySelectorAll('.card')];
   if ('IntersectionObserver' in window) {
-    const watcher = new IntersectionObserver((entries) => entries.forEach(e => e.target.classList.toggle('active',e.isIntersecting && e.intersectionRatio > .4)),{root:feed,threshold:[.4,.7]});
+    const watcher = new IntersectionObserver((entries) => entries.forEach(e => {e.target.classList.toggle('active',e.isIntersecting && e.intersectionRatio > .4); if(!e.isIntersecting || e.intersectionRatio<.3)e.target.querySelectorAll('video').forEach(v=>v.pause());}),{root:feed,threshold:[.3,.4,.7]});
     cards.forEach(c => watcher.observe(c));
   }
   if(cards[0]) cards[0].classList.add('active');
@@ -161,6 +178,7 @@ function updateGalleryDots(card,index){
   const safeIndex=Math.max(0,Math.min(length-1,index));
   if(Number(gallery.dataset.currentPhoto)===safeIndex)return;
   gallery.dataset.currentPhoto=String(safeIndex);
+  gallery.querySelectorAll('.product-slide video').forEach((video,i)=>{if(i!==safeIndex&&!video.paused)video.pause();});
   card.querySelectorAll('.photo-dot').forEach((dot,i)=>{
     const current=i===safeIndex;
     dot.classList.toggle('selected',current);
@@ -197,8 +215,8 @@ function renderDetails(p) {
   photoIndex = Math.max(0, Math.min(photoIndex,photos.length-1));
   const specs = p.specs.map(s=>`<div class="spec"><b>${esc(s.label)}</b><span>${esc(s.value)}</span></div>`).join('');
   sheet.innerHTML = `<div class="detail-wrap"><button class="close" type="button" data-detail-action="close" aria-label="Cerrar">✕</button>
-    <img class="gallery-main" id="detail-photo" data-image-fallback="allowed" src="${esc(displayPhoto(photos[photoIndex].url))}" alt="${esc(p.name)}">
-    <div class="gallery-strip">${photos.map((ph,i)=>`<button type="button" class="thumb ${i===photoIndex?'selected':''}" data-detail-action="photo" data-photo-index="${i}" aria-label="Foto ${i+1}"><img data-image-fallback="allowed" src="${esc(displayPhoto(ph.url))}" alt="Foto ${i+1}"></button>`).join('')}</div>
+    ${detailMediaHTML(photos[photoIndex],p.name)}
+    <div class="gallery-strip">${photos.map((ph,i)=>`<button type="button" class="thumb ${i===photoIndex?'selected':''}" data-detail-action="photo" data-photo-index="${i}" aria-label="${isVideo(ph)?'Video':'Foto'} ${i+1}">${mediaThumbHTML(ph,p.name)}</button>`).join('')}</div>
     <div class="detail-kicker">JCYG STORE · PRODUCTO</div><h2>${esc(p.name)}</h2><div class="product-code">Código: ${esc(p.code)}</div>
     <div class="detail-price"><span class="p">${money(p.price)}</span>${discount(p) ? `<del>${money(p.oldPrice)}</del><span class="discount">-${discount(p)}%</span>` : ''}</div>
     <div class="stock-line"><span class="stock-badge ${p.stock===0?'out':''}">${p.stock ? `${p.stock} disponibles` : 'Agotado'}</span></div>
@@ -211,10 +229,11 @@ function renderDetails(p) {
 }
 function openProduct(id) {
   const p = getProduct(id); if(!p) return;
-  currentId = id; photoIndex = Math.max(0,p.photos.findIndex(ph=>ph.color===selection(p)));
+  pausedVideosExcept(null);
+  currentId = id; photoIndex = Math.max(0,p.photos.findIndex(ph=>ph.color===selection(p))); 
   renderDetails(p); modal.classList.add('show'); modal.setAttribute('aria-hidden','false');
 }
-function closeProduct() {modal.classList.remove('show');modal.setAttribute('aria-hidden','true');currentId=null;}
+function closeProduct() {pausedVideosExcept(null);modal.classList.remove('show');modal.setAttribute('aria-hidden','true');currentId=null;}
 // El usuario debe estar ACTIVO en WhatsApp; un usuario solamente reservado no abre chats.
 function normalizeWhatsAppUsername(value){return String(value||'').trim().replace(/^@+/, '');}
 function validWhatsAppUsername(value){return /^[a-zA-Z0-9._]{3,40}$/.test(value);}
@@ -297,6 +316,7 @@ function updateLikeButtons(){
     const label=btn.querySelector('.likes-text');if(label)label.textContent=String(likeCounts.get(id)||0);
   }
 }
+document.addEventListener('play',e=>{if(e.target.matches?.('video.jcyg-product-video'))pausedVideosExcept(e.target);},true);
 feed.addEventListener('click',(e) => {
   const btn = e.target.closest('[data-action]'); if(!btn) return;
   if(btn.dataset.action === 'admin') {openAdmin();return;}
@@ -327,8 +347,7 @@ modal.addEventListener('click',e => {
   if(b.dataset.detailAction==='cart-add'){addToCart(p.id);}
   if(b.dataset.detailAction==='color') {const c=p.colors[Number(b.dataset.colorIndex)];if(c)chooseColor(p.id,c.name);}
   if(b.dataset.detailAction==='photo') {
-    photoIndex=Number(b.dataset.photoIndex);const src=p.photos[photoIndex]?.url || blankPhoto;
-    $('detail-photo').src=displayPhoto(src);sheet.querySelectorAll('.thumb').forEach(el=>el.classList.toggle('selected',Number(el.dataset.photoIndex)===photoIndex));
+    const priorScroll=sheet.scrollTop;photoIndex=Number(b.dataset.photoIndex);renderDetails(p);sheet.scrollTop=priorScroll;
   }
 });
 function openAdmin(){adminOverlay.classList.add('show');adminOverlay.setAttribute('aria-hidden','false');renderAdmin();}
@@ -363,7 +382,7 @@ function renderAdmin() {
   adminContent.innerHTML=`<div class="admin-topline"><div><h2>Productos publicados</h2><p class="muted">Administra el inventario y el catálogo desde aquí.</p></div><button class="admin-primary" data-admin-action="new">＋ Agregar producto</button></div>
     ${adminTabs()}
     <div class="admin-product-list">${adminProducts.length ? adminProducts.map(p=>`<div class="admin-item">
-      <img src="${esc(safeImage(p.photos[0]?.url))}" alt="${esc(p.name)}"><div><div class="admin-item-title">${esc(p.name)}</div><div class="admin-item-sub">${esc(p.code)} · ${money(p.price)} · ${unavailable(p)?'AGOTADO':p.stock+' disponibles'} · ${p.photos.length}/10 fotos</div><div class="admin-item-status ${!p.published?'draft':''}">${p.published?'● Publicado':'● Borrador (no visible)'}</div></div>
+      <img src="${esc(safeImage(mainImage(p)))}" alt="${esc(p.name)}"><div><div class="admin-item-title">${esc(p.name)}</div><div class="admin-item-sub">${esc(p.code)} · ${money(p.price)} · ${unavailable(p)?'AGOTADO':p.stock+' disponibles'} · ${p.photos.length}/10 archivos</div><div class="admin-item-status ${!p.published?'draft':''}">${p.published?'● Publicado':'● Borrador (no visible)'}</div></div>
       <div class="admin-actions"><button type="button" class="admin-secondary" data-admin-action="edit" data-id="${esc(p.id)}">Editar</button><button type="button" class="admin-danger" data-admin-action="delete" data-id="${esc(p.id)}">Eliminar</button><button type="button" class="admin-primary admin-sale-button" data-admin-action="new-sale" data-id="${esc(p.id)}" ${p.stock<=0?'disabled title="Sin unidades disponibles"':''}>＋ Venta</button></div>
     </div>`).join('') : '<div class="admin-note">Todavía no hay productos publicados. Usa «Agregar producto» para comenzar.</div>'}</div>`;
 }
@@ -386,7 +405,7 @@ function renderSaleEditor(){
   const p=adminProducts.find(item=>item.id===saleProductId);
   if(!p){adminTab='products';renderAdmin();return;}
   adminContent.innerHTML=`<div class="admin-topline"><h2>Registrar venta</h2><button type="button" class="admin-secondary" data-admin-action="tab-products">← Regresar</button></div>
-    <div class="sale-product-summary"><img src="${esc(safeImage(p.photos[0]?.url))}" alt="${esc(p.name)}"><div><strong>${esc(p.name)}</strong><div class="muted">Código: ${esc(p.code)}</div><div class="muted">${p.stock} unidades disponibles · ${money(p.price)} c/u</div></div></div>
+    <div class="sale-product-summary"><img src="${esc(safeImage(mainImage(p)))}" alt="${esc(p.name)}"><div><strong>${esc(p.name)}</strong><div class="muted">Código: ${esc(p.code)}</div><div class="muted">${p.stock} unidades disponibles · ${money(p.price)} c/u</div></div></div>
     <form id="sale-form" class="admin-panel">
       <div class="editor-grid">
         <label class="admin-field">Cantidad vendida<input type="number" name="quantity" min="1" max="${p.stock}" step="1" value="1" required></label>
@@ -566,11 +585,13 @@ function renderEditor(){
       <div class="custom-color-row"><label class="admin-field">Color personalizado<input name="customColorName" maxlength="35"></label>
         <label class="admin-field">Tono<input name="customColorHex" type="color" value="#2563eb"></label>
         <button class="admin-secondary" type="button" data-admin-action="custom-color">Añadir</button></div></div>
-    <div class="admin-panel"><h3>Fotografías del producto · Cloudinary</h3>
+    <div class="admin-panel"><h3>Fotos y videos del producto · Cloudinary</h3>
       
-      <label class="admin-field">Seleccionar fotografías
-        <input id="product-photos" type="file" accept="image/png,.png" multiple></label>
-      
+      <div class="editor-media-uploads">
+        <label class="admin-field">Agregar fotografías PNG<input id="product-photos" type="file" accept="image/png,.png" multiple></label>
+        <label class="admin-field">Agregar videos MP4<input id="product-videos" type="file" accept="video/mp4,.mp4" multiple></label>
+      </div>
+      <div class="editor-media-hint">Hasta 10 archivos entre fotos y videos. Videos MP4 de máximo 50 MB y 60 segundos.</div>
       <div id="editor-photos" class="photo-list"></div></div>
     <div class="admin-panel"><h3>Características completas</h3><label class="admin-field">Una característica por línea, con formato Nombre: Detalle
       <textarea name="specs" rows="9">${esc((p?.specs||[]).map(s=>`${s.label}: ${s.value}`).join('\n'))}</textarea>
@@ -593,10 +614,11 @@ function renderSelectedColors(){
 }
 function renderEditorPhotos(){
   const wrap=$('editor-photos');if(!wrap)return;
-  wrap.innerHTML=editorPhotos.length ? editorPhotos.map((ph,i)=>`<div class="photo-tile"><img src="${esc(safeImage(ph.preview||ph.url))}" alt="Foto ${i+1}">
-    <label for="photo-color-${i}">Foto ${i+1} · Asociar al color</label><select id="photo-color-${i}" data-photo-color="${esc(ph.id)}"><option value="">Sin color específico</option>
+  wrap.innerHTML=editorPhotos.length ? editorPhotos.map((ph,i)=>`<div class="photo-tile">
+    ${isVideo(ph)?`<video class="admin-media-preview" src="${esc(ph.preview||ph.url)}" playsinline controls preload="none"></video>`:`<img src="${esc(safeImage(ph.preview||ph.url))}" alt="Foto ${i+1}">`}
+    <label for="photo-color-${i}">${isVideo(ph)?'Video':'Foto'} ${i+1} · Asociar al color</label><select id="photo-color-${i}" data-photo-color="${esc(ph.id)}"><option value="">Sin color específico</option>
     ${editorColors.map(c=>`<option value="${esc(c.name)}" ${ph.color===c.name?'selected':''}>${esc(c.name)}</option>`).join('')}</select>
-    <button type="button" data-admin-action="remove-photo" data-photo-id="${esc(ph.id)}">✕ Quitar foto</button></div>`).join('') : '';
+    <button type="button" data-admin-action="remove-photo" data-photo-id="${esc(ph.id)}">✕ Quitar ${isVideo(ph)?'video':'foto'}</button></div>`).join('') : '';
 }
 function syncEditorStock(){
   const field=adminContent.querySelector('#editor-form [name="stock"]');
@@ -730,6 +752,18 @@ async function makePNG(file) {
     ));
   } finally { URL.revokeObjectURL(local); }
 }
+async function checkVideoMP4(file){
+  if(!/\.mp4$/i.test(file.name) || !['video/mp4','application/octet-stream',''].includes(file.type))throw Error('Selecciona un video MP4.');
+  if(file.size>50*1024*1024)throw Error('El video supera 50 MB. Usa un archivo más pequeño.');
+  const local=URL.createObjectURL(file);
+  try{
+    const video=document.createElement('video');video.preload='metadata';video.src=local;
+    await waitLimit(new Promise((resolve,reject)=>{
+      video.onloadedmetadata=()=>resolve(); video.onerror=()=>reject(Error('No se pudo leer el video MP4.'));
+    }),14000,'No se pudo leer la duración del video.');
+    if(!Number.isFinite(video.duration)||video.duration<=0||video.duration>60)throw Error('El video debe durar como máximo 60 segundos.');
+  }finally{URL.revokeObjectURL(local);}
+}
 async function authorizeCloudinary(endpoint,body){
   if(!workerReady()) throw Error('Falta configurar cloudinary-config.js con la URL del Worker.');
   if(!isAdmin()) throw Error('Debes iniciar sesión como administrador.');
@@ -765,9 +799,28 @@ function cloudinaryUploadPNG(blob,signed,onProgress){
     xhr.send(form);
   });
 }
-async function removeCloudinaryPhoto(path){
+function cloudinaryUploadMP4(file,signed,onProgress){
+  return new Promise((resolve,reject)=>{
+    const xhr=new XMLHttpRequest();
+    xhr.open('POST',`https://api.cloudinary.com/v1_1/${encodeURIComponent(signed.cloud_name)}/video/upload`);
+    xhr.timeout=300000;
+    xhr.upload.onprogress=event=>{if(event.lengthComputable)onProgress(Math.round(100*event.loaded/event.total));};
+    xhr.onerror=()=>reject(Error('No se pudo conectar a Cloudinary para subir el video.'));
+    xhr.ontimeout=()=>reject(Error('Se agotó el tiempo para subir el video. Revisa la conexión.'));
+    xhr.onload=()=>{
+      let result={};try{result=JSON.parse(xhr.responseText);}catch{}
+      if(xhr.status>=200&&xhr.status<300&&result.resource_type==='video'&&result.format==='mp4'&&safeVideo(result.secure_url)&&isCloudinaryPublicId(result.public_id))resolve(result);
+      else reject(Error(result?.error?.message||'Cloudinary rechazó el MP4. Comprueba el formato o la cuota.'));
+    };
+    const form=new FormData();form.append('file',file,file.name);
+    for(const [key,value] of Object.entries(signed.params))form.append(key,String(value));
+    form.append('api_key',signed.api_key);form.append('signature',signed.signature);
+    xhr.send(form);
+  });
+}
+async function removeCloudinaryPhoto(path,type='image'){
   if(!isCloudinaryPublicId(path)||!workerReady())return;
-  try{await authorizeCloudinary('/delete',{public_id:path});}catch(e){console.warn('Foto retirada del catálogo; borrado remoto pendiente:',e.message);}
+  try{await authorizeCloudinary('/delete',{public_id:path,resource_type:type==='video'?'video':'image'});}catch(e){console.warn('Archivo retirado del catálogo; borrado remoto pendiente:',e.message);}
 }
 async function saveProduct(form){
   if(saving)return;
@@ -780,15 +833,15 @@ async function saveProduct(form){
   if(adminProducts.some(p=>p.id!==editId&&p.code.toUpperCase()===code) && (current || code!==editorAutoCode)){status.textContent='Ya existe un producto con ese código.';return;}
   if(oldPrice<0 || !Number.isFinite(oldPrice)){status.textContent='El precio anterior no es válido.';return;}
   if(oldPrice>0 && oldPrice<=price){status.textContent='El precio anterior debe ser superior al actual para indicar descuento, o déjalo en blanco.';return;}
-  if(editorPhotos.length>10){status.textContent='Puedes agregar como máximo 10 fotografías por producto.';return;}
+  if(editorPhotos.length>10){status.textContent='Puedes agregar como máximo 10 archivos por producto.';return;}
   // Los archivos elegidos aún no tienen URL: se suben a Cloudinary antes de guardar.
   // Se conservan las URL de fotografías existentes; las nuevas se suben como archivos.
-  if(editorPhotos.some(pic => !pic.file && !( /^https:\/\//i.test(pic.url) || /^assets\/[\w.-]+\.(?:jpg|jpeg|png|webp|svg)$/i.test(pic.url)))) {
-    status.textContent='Hay una fotografía guardada con una ruta no válida.';
+  if(editorPhotos.some(pic => !pic.file && !(isVideo(pic)?safeVideo(pic.url):( /^https:\/\//i.test(pic.url) || /^assets\/[\w.-]+\.(?:jpg|jpeg|png|webp|svg)$/i.test(pic.url))))) {
+    status.textContent='Hay un archivo guardado con una ruta no válida.';
     return;
   }
   if(editorPhotos.some(pic=>pic.file) && !workerReady()){
-    status.textContent='Debes configurar la URL del Worker en cloudinary-config.js para subir PNG.';return;
+    status.textContent='Debes configurar la URL del Worker en cloudinary-config.js para subir archivos.';return;
   }
   saving=true;const button=$('save-product');button.disabled=true;
   const uploadedPaths=[];
@@ -798,16 +851,18 @@ async function saveProduct(form){
     for(let i=0;i<editorPhotos.length;i++){
       const pic=editorPhotos[i];
       if(pic.file){
-        status.textContent=`Validando PNG ${i+1} de ${editorPhotos.length}…`;
-        const png=await waitLimit(makePNG(pic.file), 25000, 'Se agotó el tiempo preparando el PNG. Intenta con una foto menor de 2 MB y de 1200 px por lado.');
-        status.textContent=`Autorizando foto ${i+1} de ${editorPhotos.length} con Cloudflare…`;
-        const signed=await waitLimit(authorizeCloudinary('/sign'), 26000, 'Cloudflare no respondió a tiempo. Revisa el Worker y sus seis variables.');
-        if(!signed?.cloud_name || !signed?.api_key || !signed?.signature || !signed?.params) throw Error('Cloudflare devolvió una autorización incompleta. Revisa el Worker.');
-        status.textContent=`Subiendo foto ${i+1}/${editorPhotos.length} · 0%`;
-        const uploaded=await cloudinaryUploadPNG(png,signed,pct=>{status.textContent=`Subiendo foto ${i+1}/${editorPhotos.length} · ${pct}%`;});
-        uploadedPaths.push(uploaded.public_id);
-        photos.push({url:uploaded.secure_url,path:uploaded.public_id,color:pic.color||''});
-      } else photos.push({url:pic.url,path:pic.path||'',color:pic.color||''});
+        const video=isVideo(pic);
+        if(video)await checkVideoMP4(pic.file);
+        else status.textContent=`Preparando foto ${i+1} de ${editorPhotos.length}…`;
+        const file=video?pic.file:await waitLimit(makePNG(pic.file), 25000, 'Se agotó el tiempo preparando el PNG. Intenta con una fotografía más pequeña.');
+        status.textContent=`Autorizando ${video?'video':'foto'} ${i+1} de ${editorPhotos.length}…`;
+        const signed=await waitLimit(authorizeCloudinary(video?'/sign-video':'/sign'), 26000, video?'Cloudflare no autorizó el video. Actualiza primero el Worker.':'Cloudflare no respondió a tiempo.');
+        if(!signed?.cloud_name || !signed?.api_key || !signed?.signature || !signed?.params)throw Error('Cloudflare devolvió una autorización incompleta.');
+        status.textContent=`Subiendo ${video?'video':'foto'} ${i+1}/${editorPhotos.length} · 0%`;
+        const uploaded=await (video?cloudinaryUploadMP4(file,signed,pct=>{status.textContent=`Subiendo video ${i+1}/${editorPhotos.length} · ${pct}%`;}):cloudinaryUploadPNG(file,signed,pct=>{status.textContent=`Subiendo foto ${i+1}/${editorPhotos.length} · ${pct}%`;}));
+        uploadedPaths.push({path:uploaded.public_id,type:video?'video':'image'});
+        photos.push({type:video?'video':'image',url:uploaded.secure_url,path:uploaded.public_id,color:pic.color||''});
+      } else photos.push({type:isVideo(pic)?'video':'image',url:pic.url,path:pic.path||'',color:pic.color||''});
     }
     status.textContent='Guardando producto en Firebase Firestore…';
     const payload={name,code,desc,price,oldPrice,stock,outOfStock,stockByColor:editorColorStockMode,published:form.elements.published.value==='true',
@@ -831,22 +886,22 @@ async function saveProduct(form){
       transaction.set(productRef,payload,{merge:true});
       lastKnownProductNumber=newMax;
     });
-    const removed=(current?.photos||[]).map(p=>p.path).filter(path=>isCloudinaryPublicId(path)&&!photos.some(p=>p.path===path));
+    const removed=(current?.photos||[]).filter(p=>isCloudinaryPublicId(p.path)&&!photos.some(pic=>pic.path===p.path&&pic.type===p.type));
     notify(current?'Producto actualizado.':'Producto agregado.');returnToProductsAfterSave();
-    for(const path of removed)await removeCloudinaryPhoto(path);
+    for(const item of removed)await removeCloudinaryPhoto(item.path,item.type);
   }catch(e){
     console.error('JCYG STORE: no se pudo guardar producto:',e);
     status.textContent=`No se pudo guardar: ${e.message||e.code}. Revisa la configuración y vuelve a intentar.`;
     notify('No se pudo guardar el producto. Revisa el mensaje del formulario.');
     // Si Firestore falla tras subir fotos, las fotos recién subidas se retiran para no gastar espacio.
-    for(const path of uploadedPaths)await removeCloudinaryPhoto(path);
+    for(const item of uploadedPaths)await removeCloudinaryPhoto(item.path,item.type);
   }finally{saving=false;const btn=$('save-product');if(btn)btn.disabled=false;}
 }
 function returnToProductsAfterSave(){clearPhotoPreviews();editorPhotos=[];editorColors=[];editorColorStockMode=false;editorOpeningStock=null;editId=null;editorAutoCode=null;adminTab='products';renderAdmin();}
 async function deleteProduct(id){
   const p=adminProducts.find(x=>x.id===id);if(!p)return;
   if(!confirm(`¿Eliminar definitivamente «${p.name}» del catálogo?`))return;
-  try {const batch=sdk.writeBatch(db);batch.delete(sdk.doc(db,'products',id));batch.delete(sdk.doc(db,'productLikes',id));await batch.commit();cart=cart.filter(item=>item.id!==id);saveCart();likes.delete(id);localStorage.setItem('jcyg_likes_v2',JSON.stringify([...likes]));notify('Producto eliminado.');for(const ph of p.photos) await removeCloudinaryPhoto(ph.path);}
+  try {const batch=sdk.writeBatch(db);batch.delete(sdk.doc(db,'products',id));batch.delete(sdk.doc(db,'productLikes',id));await batch.commit();cart=cart.filter(item=>item.id!==id);saveCart();likes.delete(id);localStorage.setItem('jcyg_likes_v2',JSON.stringify([...likes]));notify('Producto eliminado.');for(const ph of p.photos) await removeCloudinaryPhoto(ph.path,ph.type);}
   catch(e){notify(`Error al eliminar: ${e.code||e.message}`);}
 }
 adminContent.addEventListener('submit', async e=>{
@@ -861,13 +916,21 @@ adminContent.addEventListener('change',e=>{
   if(e.target.matches('#sale-form [name="color"]'))updateSalePreview();
   if(e.target.id==='product-photos'){
     const input=e.target;const files=[...input.files];input.value='';
-    if(files.length+editorPhotos.length>10){notify('Máximo 10 fotos por producto.');return;}
+    if(files.length+editorPhotos.length>10){notify('Máximo 10 fotos y videos por producto.');return;}
     if(files.some(file=>file.type!=='image/png'||!/\.png$/i.test(file.name)||file.size>10*1024*1024)){
       notify('Selecciona únicamente archivos .png de máximo 10 MB.');return;
     }
-    files.forEach(file=>editorPhotos.push({id:crypto.randomUUID(),url:'',path:'',color:'',file,preview:URL.createObjectURL(file)}));
+    files.forEach(file=>editorPhotos.push({type:'image',id:crypto.randomUUID(),url:'',path:'',color:'',file,preview:URL.createObjectURL(file)}));
     renderEditorPhotos();
-
+  }
+  if(e.target.id==='product-videos'){
+    const input=e.target;const files=[...input.files];input.value='';
+    if(files.length+editorPhotos.length>10){notify('Máximo 10 fotos y videos por producto.');return;}
+    if(files.some(file=>!/\.mp4$/i.test(file.name)||!['video/mp4','application/octet-stream',''].includes(file.type)||file.size>50*1024*1024)){
+      notify('Selecciona videos MP4 de máximo 50 MB.');return;
+    }
+    files.forEach(file=>editorPhotos.push({type:'video',id:crypto.randomUUID(),url:'',path:'',color:'',file,preview:URL.createObjectURL(file)}));
+    renderEditorPhotos();
   }
   if(e.target.matches('[data-photo-color]')){
     const ph=editorPhotos.find(p=>p.id===e.target.dataset.photoColor);if(ph)ph.color=e.target.value;
