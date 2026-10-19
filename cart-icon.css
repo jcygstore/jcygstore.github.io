@@ -42,3 +42,41 @@
   #cart-floating::before { width:31px;height:31px; }
   .cart-detail-btn::before { width:30px;height:30px;flex-basis:30px; }
 }
+
+
+/* Updated bigger/darker cart icons */
+.add-icon, .drawer-cart-icon, .cart-btn-icon, .cart-icon-img, .icon-cart-img {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: contain !important;
+  display: block;
+}
+.circle-icon, .btn-circle-icon, .cart-circle, .icon-circle {
+  width: 2.35rem !important;
+  height: 2.35rem !important;
+  border-radius: 999px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  overflow: hidden !important;
+  background: rgba(255,255,255,.9) !important;
+}
+.add-icon-wrap, .cart-icon-wrap, .drawer-cart-icon-wrap {
+  width: 1.7rem !important;
+  height: 1.7rem !important;
+  display:inline-flex !important;
+  align-items:center !important;
+  justify-content:center !important;
+}
+/* direct image targets used in our template */
+img[src$="cart-icon.png"], img[src$="cart-icon-add.png"] {
+  width: 1.7rem !important;
+  height: 1.7rem !important;
+  object-fit: contain !important;
+  image-rendering: auto;
+}
+/* if button uses fixed size icon box */
+button .icon-wrap, button .btn-icon-wrap, button .cart-img-wrap {
+  width: 1.8rem !important;
+  height: 1.8rem !important;
+}
