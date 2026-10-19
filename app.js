@@ -288,8 +288,8 @@ function renderAdmin() {
   if(!sdk) {adminContent.innerHTML = '<div class="login-wrap"><h2>Conectando con Firebase…</h2><p>Comprueba tu conexión a internet.</p></div>';return;}
   if(!activeUser) {
     adminContent.innerHTML=`<div class="login-wrap"><h2>Acceso de administrador</h2><p>Introduce el correo y la contraseña del usuario creado en Firebase Authentication.</p>
-      <form id="login-form"><label class="admin-field">Correo administrador<input required autocomplete="username" type="email" name="email" placeholder="admin@tuempresa.com"></label>
-      <label class="admin-field" style="margin-top:14px">Contraseña<input required autocomplete="current-password" type="password" name="password" minlength="6" placeholder="Contraseña de Firebase"></label>
+      <form id="login-form"><label class="admin-field">Correo administrador<input required autocomplete="username" type="email" name="email"></label>
+      <label class="admin-field" style="margin-top:14px">Contraseña<input required autocomplete="current-password" type="password" name="password" minlength="6"></label>
       <button class="admin-primary" type="submit" style="margin-top:19px;width:100%">Ingresar al panel</button><div id="login-status" aria-live="polite"></div></form></div>`;return;
   }
   if(!isAdmin()) {
@@ -319,7 +319,7 @@ function renderSettings(){
         </select>
       </label>
       <label class="admin-field" style="margin-top:14px"><span id="whatsapp-contact-label">${mode==='username'?'Usuario de WhatsApp':'Número de celular'}</span>
-        <input name="whatsappContact" type="text" inputmode="${mode==='username'?'text':'tel'}" maxlength="50" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="${mode==='username'?'@jhonatanbartra':'51987654321'}" value="${esc(current)}" required>
+        <input name="whatsappContact" type="text" inputmode="${mode==='username'?'text':'tel'}" maxlength="50" autocomplete="off" autocapitalize="off" spellcheck="false" value="${esc(current)}" required>
       </label>
       <button class="admin-primary" type="submit" style="margin-top:17px">Guardar</button>
       <div id="settings-status" aria-live="polite"></div>
@@ -334,7 +334,6 @@ function renderSettings(){
     drafts[currentMode]=field.value;
     currentMode=select.value==='username'?'username':'number';
     field.value=drafts[currentMode];
-    field.placeholder=currentMode==='username'?'@jhonatanbartra':'51987654321';
     field.inputMode=currentMode==='username'?'text':'tel';
     label.textContent=currentMode==='username'?'Usuario de WhatsApp':'Número de celular';
   });
@@ -354,18 +353,18 @@ function renderEditor(){
   adminContent.innerHTML=`<div class="admin-topline"><h2>${p?'Editar producto':'Agregar producto'}</h2><button type="button" class="admin-secondary" data-admin-action="cancel-editor">← Regresar</button></div>
   <form id="editor-form"><div class="admin-panel"><h3>Información principal</h3>
     <div class="editor-grid">
-      <label class="admin-field span-all">Nombre del producto<input name="name" required maxlength="130" placeholder="Camioneta eléctrica infantil" value="${esc(p?.name||'')}"></label>
-      <label class="admin-field">Código del producto (editable)<input name="code" required maxlength="7" minlength="7" pattern="[Jj][Ss]-[0-9]{4}" value="${esc(p?.code&&CODE_PATTERN.test(p.code)?p.code:(editorAutoCode||makeCode()))}" placeholder="JS-0001" autocapitalize="characters"><small>Formato: JS-0001. Se genera automáticamente y puedes cambiar los cuatro números.</small></label>
-      <label class="admin-field span-all">Descripción breve<textarea name="desc" maxlength="500" rows="3" placeholder="Luces LED · MP3 · USB · Control remoto">${esc(p?.desc||'')}</textarea></label>
-      <label class="admin-field">Precio actual (S/)<input type="number" name="price" required min="0.01" step="0.01" value="${p?.price||''}" placeholder="850.00"></label>
-      <label class="admin-field">Precio anterior (opcional)<input type="number" name="oldPrice" min="0" step="0.01" value="${p?.oldPrice||''}" placeholder="900.00"><small>Si es mayor al precio actual se mostrará el porcentaje de descuento.</small></label>
-      <label class="admin-field">Cantidad disponible<input type="number" name="stock" required min="0" step="1" value="${p?.stock ?? 0}"></label>
+      <label class="admin-field span-all">Nombre del producto<input name="name" required maxlength="130" value="${esc(p?.name||'')}"></label>
+      <label class="admin-field">Código del producto (editable)<input name="code" maxlength="7" minlength="7" pattern="[Jj][Ss]-[0-9]{4}" value="${esc(p?.code&&CODE_PATTERN.test(p.code)?p.code:'')}" autocapitalize="characters"><small>En un producto nuevo puedes dejarlo vacío y se generará automáticamente.</small></label>
+      <label class="admin-field span-all">Descripción breve<textarea name="desc" maxlength="500" rows="3">${esc(p?.desc||'')}</textarea></label>
+      <label class="admin-field">Precio actual (S/)<input type="number" name="price" required min="0.01" step="0.01" value="${p?.price||''}"></label>
+      <label class="admin-field">Precio anterior (opcional)<input type="number" name="oldPrice" min="0" step="0.01" value="${p?.oldPrice||''}"><small>Si es mayor al precio actual se mostrará el porcentaje de descuento.</small></label>
+      <label class="admin-field">Cantidad disponible<input type="number" name="stock" required min="0" step="1" value="${p?.stock ?? ''}"></label>
       <label class="admin-field">Disponibilidad<select name="outOfStock"><option value="false" ${!p?.outOfStock?'selected':''}>Disponible según stock</option><option value="true" ${p?.outOfStock?'selected':''}>Agotado (stock 0 y permitir aviso por WhatsApp)</option></select></label>
       <label class="admin-field">Estado<select name="published"><option value="true" ${p?.published!==false?'selected':''}>Publicado (visible)</option><option value="false" ${p?.published===false?'selected':''}>Borrador (oculto)</option></select></label>
     </div></div>
     <div class="admin-panel"><h3>Colores del producto</h3><p class="muted">Selecciona los colores que pueden elegir los compradores. Después, vincula cada foto a uno de ellos.</p>
       <div id="selected-colors" class="selected-colors"></div><div id="color-palette" class="color-palette"></div>
-      <div class="custom-color-row"><label class="admin-field">Color personalizado<input name="customColorName" maxlength="35" placeholder="Ej. Azul marino"></label>
+      <div class="custom-color-row"><label class="admin-field">Color personalizado<input name="customColorName" maxlength="35"></label>
         <label class="admin-field">Tono<input name="customColorHex" type="color" value="#2563eb"></label>
         <button class="admin-secondary" type="button" data-admin-action="custom-color">Añadir</button></div></div>
     <div class="admin-panel"><h3>Fotografías del producto · Cloudinary</h3>
@@ -375,12 +374,12 @@ function renderEditor(){
       ${!workerReady()?'<p class="admin-error">Falta configurar Cloudinary para subir fotografías.</p>':''}
       <details style="margin-top:12px"><summary style="cursor:pointer">¿Ya tengo una foto en GitHub? Añadir por enlace</summary>
         <label class="admin-field" style="margin-top:9px">Ruta de imagen en GitHub
-          <input id="photo-url" type="text" inputmode="url" spellcheck="false" autocomplete="off" placeholder="assets/camioneta-roja.jpg"></label>
+          <input id="photo-url" type="text" inputmode="url" spellcheck="false" autocomplete="off"></label>
         <button type="button" class="admin-secondary" data-admin-action="add-photo-url" style="margin-top:9px">＋ Agregar por enlace</button>
       </details>
       <div id="editor-photos" class="photo-list"></div></div>
     <div class="admin-panel"><h3>Características completas</h3><label class="admin-field">Una característica por línea, con formato Nombre: Detalle
-      <textarea name="specs" rows="9" placeholder="Dimensiones: 120 × 74 × 80 cm\nMaterial: ABS de alta calidad\nMotor: 4 × 380 W\nBatería: 2 × 6V 4.5Ah\nIncluye: Control remoto, luces LED">${esc((p?.specs||[]).map(s=>`${s.label}: ${s.value}`).join('\n'))}</textarea>
+      <textarea name="specs" rows="9">${esc((p?.specs||[]).map(s=>`${s.label}: ${s.value}`).join('\n'))}</textarea>
       <small>Estas características se muestran cuando el comprador abre «Detalles».</small></label></div>
     <div id="save-status" class="admin-working" aria-live="polite"></div>
     <div class="form-footer"><button type="button" id="cancel-product-editor" class="admin-secondary" data-admin-action="cancel-editor">Cancelar</button><button type="submit" class="admin-primary" id="save-product">Guardar producto</button></div></form>`;
@@ -566,7 +565,7 @@ async function saveProduct(form){
   const name=form.elements.name.value.trim(),desc=form.elements.desc.value.trim();
   const price=Number(form.elements.price.value),oldPrice=Number(form.elements.oldPrice.value||0),outOfStock=form.elements.outOfStock.value==='true',stock=outOfStock?0:Number(form.elements.stock.value),code=form.elements.code.value.trim().toUpperCase();
   if(!name || !Number.isFinite(price) || price<=0 || !Number.isInteger(stock) || stock<0){status.textContent='Revisa nombre, precio y cantidad disponible.';return;}
-  if(!CODE_PATTERN.test(code) || numberFromCode(code)===0){status.textContent='El código debe tener el formato JS-0001 (JS y cuatro números, desde 0001).';return;}
+  if((code || current) && (!CODE_PATTERN.test(code) || numberFromCode(code)===0)){status.textContent='El código debe comenzar con JS- seguido de cuatro números.';return;}
   if(adminProducts.some(p=>p.id!==editId&&p.code.toUpperCase()===code)){status.textContent='Ya existe un producto con ese código.';return;}
   if(oldPrice<0 || !Number.isFinite(oldPrice)){status.textContent='El precio anterior no es válido.';return;}
   if(oldPrice>0 && oldPrice<=price){status.textContent='El precio anterior debe ser superior al actual para indicar descuento, o déjalo en blanco.';return;}
@@ -609,7 +608,7 @@ async function saveProduct(form){
       const last=seqSnap.exists()?Number(seqSnap.data().lastNumber)||0:0;
       const currentMax=Math.max(last,lastKnownProductNumber,...adminProducts.map(p=>numberFromCode(p.code)),0);
       let number=numberFromCode(code);
-      if(!current && code===editorAutoCode){number=currentMax+1;payload.code=formattedCode(number);}
+      if(!current && (!code || code===editorAutoCode)){number=currentMax+1;payload.code=formattedCode(number);}
       const newMax=Math.max(currentMax,number);
       transaction.set(seqRef,{lastNumber:newMax},{merge:true});
       transaction.set(productRef,payload,{merge:true});
