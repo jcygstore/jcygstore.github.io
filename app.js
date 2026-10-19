@@ -307,29 +307,37 @@ function renderAdmin() {
 }
 function renderSettings(){
   const mode=settings.whatsappMode==='username'?'username':'number';
+  const current=mode==='username'
+    ? (settings.whatsappUsername ? '@'+normalizeWhatsAppUsername(settings.whatsappUsername) : '')
+    : String(settings.whatsapp||'');
   adminContent.innerHTML=`<div class="admin-topline"><h2>WhatsApp de la tienda</h2></div>${adminTabs()}
-    <div class="admin-panel"><h3>Destino de consultas y pedidos</h3><form id="settings-form">
-      <label class="admin-field">¿Cómo quieres recibir los mensajes?
+    <div class="admin-panel"><form id="settings-form">
+      <label class="admin-field">Tipo de contacto
         <select name="whatsappMode">
-          <option value="number" ${mode==='number'?'selected':''}>Por número de teléfono (compatible con mensajes preescritos)</option>
-          <option value="username" ${mode==='username'?'selected':''}>Por nombre de usuario de WhatsApp</option>
+          <option value="username" ${mode==='username'?'selected':''}>Por nombre de usuario</option>
+          <option value="number" ${mode==='number'?'selected':''}>Por número de celular</option>
         </select>
       </label>
-      <label class="admin-field" style="margin-top:14px">Número de WhatsApp (recomendado como respaldo)
-        <input type="tel" name="whatsapp" inputmode="tel" autocomplete="off" placeholder="Ejemplo: 51987654321" value="${esc(settings.whatsapp)}">
-        <small>Incluye el código del país, sin + ni espacios. Obligatorio si eliges número.</small>
+      <label class="admin-field" style="margin-top:14px"><span id="whatsapp-contact-label">${mode==='username'?'Usuario de WhatsApp':'Número de celular'}</span>
+        <input name="whatsappContact" type="text" inputmode="${mode==='username'?'text':'tel'}" maxlength="50" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="${mode==='username'?'@jhonatanbartra':'51987654321'}" value="${esc(current)}" required>
       </label>
-      <label class="admin-field" style="margin-top:14px">Usuario de WhatsApp
-        <input type="text" name="whatsappUsername" autocapitalize="off" spellcheck="false" maxlength="41" autocomplete="off" placeholder="@jhonatanbartra" value="${esc(settings.whatsappUsername||'')}">
-        <small>Debe ser tu usuario ACTIVO en WhatsApp; no basta tenerlo reservado ni usar tu nombre de Instagram.</small>
-      </label>
-      <div class="admin-note">Si eliges usuario, los botones intentarán abrir <strong>wa.me/TuUsuario</strong>. Comprueba en tu celular que abre el chat y conserva el mensaje del pedido. Si falla, vuelve al modo por número para no perder consultas.</div>
-      <div class="admin-actions">
-        <button class="admin-primary" type="submit">Guardar WhatsApp</button>
-        <button type="button" class="admin-secondary" data-admin-action="test-wa-username">Probar enlace de usuario</button>
-      </div>
+      <button class="admin-primary" type="submit" style="margin-top:17px">Guardar</button>
       <div id="settings-status" aria-live="polite"></div>
     </form></div>`;
+  // Guarda temporalmente lo escrito cuando se cambia de modo, sin alterar Firebase.
+  const select=adminContent.querySelector('[name="whatsappMode"]');
+  const field=adminContent.querySelector('[name="whatsappContact"]');
+  const label=adminContent.querySelector('#whatsapp-contact-label');
+  const drafts={username:settings.whatsappUsername?'@'+normalizeWhatsAppUsername(settings.whatsappUsername):'',number:String(settings.whatsapp||'')};
+  let currentMode=mode;
+  select.addEventListener('change',()=>{
+    drafts[currentMode]=field.value;
+    currentMode=select.value==='username'?'username':'number';
+    field.value=drafts[currentMode];
+    field.placeholder=currentMode==='username'?'@jhonatanbartra':'51987654321';
+    field.inputMode=currentMode==='username'?'text':'tel';
+    label.textContent=currentMode==='username'?'Usuario de WhatsApp':'Número de celular';
+  });
 }
 function clearPhotoPreviews(){editorPhotos.forEach(p=>{if(p.preview?.startsWith('blob:'))URL.revokeObjectURL(p.preview);});}
 function openEditor(id=null){
@@ -418,25 +426,28 @@ async function handleLogin(form){
 async function saveSettings(form){
   const status=$('settings-status');
   const mode=form.elements.whatsappMode.value==='username'?'username':'number';
-  const digits=form.elements.whatsapp.value.replace(/\D/g,'');
-  const username=normalizeWhatsAppUsername(form.elements.whatsappUsername.value);
-  if(mode==='number' && !/^\d{8,15}$/.test(digits)){
-    status.innerHTML='<p class="admin-error">Ingresa un número de WhatsApp válido con código de país (8 a 15 dígitos).</p>';return;
-  }
-  if(digits && !/^\d{8,15}$/.test(digits)){
-    status.innerHTML='<p class="admin-error">Corrige el número de respaldo o déjalo vacío.</p>';return;
-  }
-  if(mode==='username' && !validWhatsAppUsername(username)){
-    status.innerHTML='<p class="admin-error">Ingresa un nombre de usuario de WhatsApp válido, por ejemplo @jhonatanbartra.</p>';return;
-  }
-  if(username && !validWhatsAppUsername(username)){
-    status.innerHTML='<p class="admin-error">Revisa el nombre de usuario o deja ese campo vacío.</p>';return;
+  const contact=form.elements.whatsappContact.value.trim();
+  let phone=String(settings.whatsapp||'').replace(/\D/g,'');
+  let username=normalizeWhatsAppUsername(settings.whatsappUsername);
+  if(mode==='number'){
+    phone=contact.replace(/\D/g,'');
+    if(!/^\d{8,15}$/.test(phone)){
+      status.innerHTML='<p class="admin-error">Ingresa un número válido con código de país.</p>';return;
+    }
+  }else{
+    username=normalizeWhatsAppUsername(contact);
+    if(!validWhatsAppUsername(username)){
+      status.innerHTML='<p class="admin-error">Ingresa un usuario válido de WhatsApp.</p>';return;
+    }
   }
   try{
-    const next={whatsapp:digits,whatsappUsername:username,whatsappMode:mode};
+    const next={whatsapp:phone,whatsappUsername:username,whatsappMode:mode};
     await sdk.setDoc(sdk.doc(db,'settings','storefront'),{...next,updatedAt:sdk.serverTimestamp()},{merge:true});
-    settings={...settings,...next};notify('WhatsApp actualizado. Prueba el botón Consultar.');renderSettings();
-  }catch(e){status.innerHTML=`<p class="admin-error">No se pudo guardar: ${esc(e.code||e.message)}</p>`;}
+    settings={...settings,...next};notify('WhatsApp guardado.');renderSettings();
+  }catch(e){
+    status.innerHTML='<p class="admin-error">No se pudo guardar. Intenta nuevamente.</p>';
+    console.error('Error al guardar WhatsApp:',e);
+  }
 }
 function parseSpecs(value){return String(value).split(/\r?\n/).map(line=>line.trim()).filter(Boolean).map(line=>{
   const pos=line.indexOf(':');return pos<0?{label:'Detalle',value:line.slice(0,550)}:{label:line.slice(0,pos).trim().slice(0,90)||'Detalle',value:line.slice(pos+1).trim().slice(0,550)};
@@ -668,12 +679,6 @@ adminContent.addEventListener('click', async e=>{
   if(act==='logout'){await sdk.signOut(auth);adminTab='products';return;}
   if(act==='tab-products')return returnToProducts();
   if(act==='tab-settings'){if(saving)return;adminTab='settings';renderAdmin();return;}
-  if(act==='test-wa-username'){
-    const username=normalizeWhatsAppUsername(adminContent.querySelector('[name="whatsappUsername"]')?.value);
-    if(!validWhatsAppUsername(username)){notify('Escribe primero tu usuario de WhatsApp.');return;}
-    window.open(`https://wa.me/${encodeURIComponent(username)}`,'_blank','noopener,noreferrer');
-    return;
-  }
   if(act==='new')return openEditor();
   if(act==='edit')return openEditor(b.dataset.id);
   if(act==='cancel-editor')return cancelEditor();
