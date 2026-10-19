@@ -1,65 +1,44 @@
-/* JCYG STORE · Ajuste de posicion del + al extremo superior derecho.
-   Solo estilos visuales: la logica del carrito no cambia. */
+/* JCYG STORE · Iconos aprobados: Añadir CON +, carrito general SIN +.
+   Las figuras están integradas en PNG; no se dibujan signos con CSS.
+   No se modifica el JavaScript ni la lógica de compra. */
+
+/* Botón Añadir en las fichas de productos. */
 .cart-side .ico {
-  position:relative;
   background-color:#fff !important;
-  background-image:url("assets/cart-icon.png") !important;
+  background-image:url("assets/cart-icon-add.png") !important;
   background-repeat:no-repeat !important;
-  background-position:center center !important;
-  background-size:78% auto !important;
-  color:#323232 !important;
+  background-position:center !important;
+  background-size:80% auto !important;
+  color:#333 !important;
 }
-.cart-side .ico > svg {display:none!important;}
-/* El + se apoya en el vertice exterior superior derecho. */
-.cart-side .ico::after {
-  content:"+";
-  position:absolute;
-  top:-12px;
-  right:-12px;
-  z-index:2;
-  width:19px;
-  height:19px;
-  display:grid;
-  place-items:center;
-  color:#323232;
-  font:900 24px/1 Arial,sans-serif;
-  -webkit-text-stroke:2.8px white;
-  paint-order:stroke fill;
-  pointer-events:none;
-}
-/* Un margen protege el + del recorte del borde de la ficha. */
-.card .actions {right:21px;}
-/* Carrito general: sin +, mantiene el contador de unidades. */
-#cart-floating > svg {display:none!important;}
+.cart-side .ico > svg { display:none !important; }
+.cart-side .ico::before,
+.cart-side .ico::after { content:none !important; }
+
+/* Carrito general: sin signo +, contador de unidades visible. */
+#cart-floating > svg { display:none !important; }
 #cart-floating::before {
   content:"";
   display:block;
   width:34px;
-  height:33px;
+  height:34px;
   background:url("assets/cart-icon.png") center/contain no-repeat;
   pointer-events:none;
 }
-/* Detalle: el + tambien se ubica en la esquina superior derecha
-   del dibujo, no encima del centro del carrito. */
-.cart-detail-btn > svg {display:none!important;}
+
+/* Botón Añadir dentro del detalle del producto: con signo +. */
+.cart-detail-btn > svg { display:none !important; }
 .cart-detail-btn::before {
-  content:"+";
+  content:"";
   display:block;
   flex:0 0 34px;
   width:34px;
   height:34px;
-  background:#fff url("assets/cart-icon.png") left center/90% auto no-repeat;
-  border-radius:6px;
-  color:#323232;
-  font:900 21px/1 Arial,sans-serif;
-  text-align:right;
-  text-indent:0;
-  padding:0;
-  -webkit-text-stroke:2.5px #fff;
-  paint-order:stroke fill;
+  background:url("assets/cart-icon-add.png") center/contain no-repeat;
+  pointer-events:none;
 }
-@media (max-width:540px) {
-  .card .actions {right:20px;}
-  .cart-side .ico::after {top:-11px;right:-11px;width:18px;height:18px;font-size:23px;}
-  #cart-floating::before {width:31px;height:30px;}
+
+@media(max-width:540px) {
+  #cart-floating::before { width:31px;height:31px; }
+  .cart-detail-btn::before { width:30px;height:30px;flex-basis:30px; }
 }
