@@ -1,7 +1,7 @@
-/* JCYG STORE · Ajuste de centrado final
-   El carrito de Añadir usa el MISMO centrado visual que el carrito general. */
+/* Añadir debe verse igual que el carrito con número:
+   mismo carrito negro y misma configuración; solo cambia la burbuja */
 
-/* Botón Añadir en tarjetas */
+/* Mismo carrito dentro del botón Añadir */
 .cart-side .ico{
   position:relative !important;
   overflow:visible !important;
@@ -20,27 +20,28 @@
   background:url("assets/cart-icon.png") center/contain no-repeat !important;
   pointer-events:none !important;
 }
+/* Burbuja idéntica a .cart-count pero azul con + */
 .cart-side .ico::after{
   content:"+" !important;
   position:absolute !important;
-  top:-3px !important;
-  right:-3px !important;
-  width:18px !important;
-  height:18px !important;
-  border-radius:999px !important;
-  display:flex !important;
-  align-items:center !important;
-  justify-content:center !important;
-  font-size:14px !important;
-  line-height:1 !important;
-  font-weight:900 !important;
-  color:#fff !important;
+  top:-7px !important;
+  right:-9px !important;
+  min-width:21px !important;
+  height:21px !important;
+  padding:0 3px !important;
   background:#287df4 !important;
+  color:#fff !important;
   border:2px solid #fff !important;
-  box-shadow:0 6px 14px rgba(40,125,244,.35) !important;
+  border-radius:50% !important;
+  font-size:10px !important;
+  display:grid !important;
+  place-items:center !important;
+  font-weight:900 !important;
+  line-height:1 !important;
+  box-sizing:border-box !important;
 }
 
-/* Carrito general flotante: sin + */
+/* Carrito general sin cambios visuales, usando el mismo carrito */
 #cart-floating > svg{display:none !important;}
 #cart-floating::before{
   content:"";
@@ -51,10 +52,8 @@
   pointer-events:none;
 }
 
-/* Botón Añadir dentro del detalle del producto */
-.cart-detail-btn{
-  position:relative !important;
-}
+/* Añadir en detalle: mismo carrito y misma burbuja */
+.cart-detail-btn{position:relative !important;}
 .cart-detail-btn > svg{display:none !important;}
 .cart-detail-btn::before{
   content:"";
@@ -67,63 +66,43 @@
 }
 .cart-detail-btn::after{
   content:"+";
-  position:relative;
-  display:inline-flex;
-  align-items:center;
-  justify-content:center;
-  width:18px;
-  height:18px;
-  margin-left:-18px;
-  margin-right:2px;
-  align-self:flex-start;
-  transform:translate(-4px,-8px);
-  border-radius:999px;
-  color:#fff;
+  position:absolute;
+  left:calc(50% - 18px);
+  top:calc(50% - 18px);
+  min-width:21px;
+  height:21px;
+  padding:0 3px;
   background:#287df4;
+  color:#fff;
   border:2px solid #fff;
-  box-shadow:0 6px 14px rgba(40,125,244,.35);
-  font-size:14px;
+  border-radius:50%;
+  font-size:10px;
+  display:grid;
+  place-items:center;
   font-weight:900;
   line-height:1;
+  box-sizing:border-box;
+  transform:translate(16px,-14px);
 }
 
 /* Catálogo 2026 un poco más grande */
-.admin-entry{
-  font-size:13px !important;
-  padding:13px 18px !important;
-  font-weight:900 !important;
-  letter-spacing:.9px !important;
-}
-.admin-entry svg,.admin-entry .ico,.admin-entry i{
-  width:20px !important;
-  height:20px !important;
-}
+.admin-entry{font-size:13px !important;padding:13px 18px !important;font-weight:900 !important;letter-spacing:.9px !important;}
+.admin-entry svg,.admin-entry .ico,.admin-entry i{width:20px !important;height:20px !important;}
 
 /* Un poco más de espacio entre los 4 iconos */
-.card .actions{
-  gap:13px !important;
-  right:12px !important;
-}
-.card .actions .act{
-  min-width:56px !important;
-  margin:1px 0 !important;
-}
-.card .actions .ico{
-  width:50px !important;
-  height:50px !important;
-}
-.card .actions .act small{
-  margin-top:4px !important;
-}
+.card .actions{gap:13px !important;right:12px !important;}
+.card .actions .act{min-width:56px !important;margin:1px 0 !important;}
+.card .actions .ico{width:50px !important;height:50px !important;}
+.card .actions .act small{margin-top:4px !important;}
 
 @media(max-width:540px){
   .card .actions{gap:11px !important;right:11px !important;}
   .card .actions .ico{width:45px !important;height:45px !important;}
   .card .actions .act{min-width:50px !important;}
   .cart-side .ico::before{width:34px !important;height:34px !important;}
-  .cart-side .ico::after{width:17px !important;height:17px !important;font-size:13px !important;top:-3px !important;right:-3px !important;}
+  .cart-side .ico::after{top:-7px !important;right:-9px !important;min-width:21px !important;height:21px !important;font-size:10px !important;}
   #cart-floating::before{width:34px;height:34px;}
   .cart-detail-btn::before{width:34px;height:34px;flex-basis:34px;}
-  .cart-detail-btn::after{width:17px;height:17px;font-size:13px;transform:translate(-4px,-7px);}
+  .cart-detail-btn::after{min-width:21px;height:21px;font-size:10px;transform:translate(14px,-12px);}
   .admin-entry{font-size:12px !important;padding:11px 15px !important;}
 }
