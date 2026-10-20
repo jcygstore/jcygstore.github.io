@@ -151,7 +151,7 @@ function renderFeed() {
       ${firebaseReady ? '' : '<div class="sample-banner">Catálogo de ejemplo · Firebase pendiente</div>'}
       <div class="info"><div class="eyebrow">JCYG STORE</div><p class="image-disclaimer">Las imágenes son de carácter ilustrativo y referencial.</p><div class="name">${esc(p.name)}</div><div class="product-code">Código: ${esc(p.code)}</div><div class="desc">${esc(p.desc)}</div>
         <div class="availability"><span class="stock-mini ${p.stock===0?'out':''}">${p.stock ? `${p.stock} disponibles` : 'Agotado'}</span>
-          ${p.colors.length ? `<span class="available-colors"><span class="available-colors-label">Colores:</span>${p.colors.map((c,i) => `<button type="button" class="mini-color-btn ${selected===c.name?'selected':''}" style="--c:${validColor(c.hex)}" title="${esc(c.name)}${colorSoldOut(p,c)?' (agotado)':(p.stockByColor?' · '+c.qty+' disponibles':'')}" aria-label="Ver color ${esc(c.name)}" data-action="color" data-color-index="${i}" ${colorSoldOut(p,c)?'disabled':''}></button>`).join('')}</span>` : ''}
+          ${p.colors.length ? `<span class="available-colors"><span class="available-colors-label">Colores:</span>${p.colors.map((c,i) => `<button type="button" class="mini-color-btn ${selected===c.name?'selected':''}" style="--c:${validColor(c.hex)}" title="${esc(c.name)}${colorSoldOut(p,c)?' (agotado)':(p.stockByColor?' · '+c.qty+' disponibles':'')}" aria-label="Ver color ${esc(c.name)}" aria-pressed="${selected===c.name}" data-action="color" data-color-index="${i}" ${colorSoldOut(p,c)?'disabled':''}></button>`).join('')}</span>` : ''}
         </div><div class="price"><span class="currency">Precio</span><strong>${money(p.price)}</strong>${off ? `<del>${money(p.oldPrice)}</del><span class="discount">-${off}%</span>` : ''}</div>
       </div><div class="actions">
         <button class="act ${likes.has(p.id)?'liked':''}" type="button" data-action="like" aria-label="Me gusta" aria-pressed="${likes.has(p.id)}"><span class="ico heart-ico">${heartSvg}</span><small class="likes-text">${likeCounts.get(p.id)||0}</small></button>
@@ -193,6 +193,19 @@ function renderFeed() {
     cards.forEach(card=>preloader.observe(card));
   }
 }
+// Al cambiar la imagen del carrusel, selecciona su color asociado sin mover
+// de nuevo la galería. Las fotos sin color conservan la selección anterior.
+function syncGalleryColor(card,index){
+  const product=getProduct(card?.dataset.id);
+  const associated=product?.photos[index]?.color;
+  if(!associated || !product.colors.some(c=>c.name===associated && !colorSoldOut(product,c)))return;
+  chosenColors.set(product.id,associated);
+  card.querySelectorAll('[data-action="color"][data-color-index]').forEach(button=>{
+    const active=product.colors[Number(button.dataset.colorIndex)]?.name===associated;
+    button.classList.toggle('selected',active);
+    button.setAttribute('aria-pressed',String(active));
+  });
+}
 function updateGalleryDots(card,index){
   const gallery=card?.querySelector('.product-gallery');if(!gallery)return;
   const length=gallery.querySelectorAll('.product-slide').length;
@@ -205,6 +218,7 @@ function updateGalleryDots(card,index){
     dot.classList.toggle('selected',current);
     dot.setAttribute('aria-pressed',String(current));
   });
+  syncGalleryColor(card,safeIndex);
 }
 function showCardPhoto(card,index,animated=false){
   const gallery=card?.querySelector('.product-gallery');if(!gallery)return;
@@ -226,7 +240,11 @@ function chooseColor(id, color) {
   if(card) {
     const matchIndex=p.photos.findIndex(ph=>ph.color===color);
     if(matchIndex>=0) showCardPhoto(card,matchIndex);
-    card.querySelectorAll('[data-color-index]').forEach(btn => btn.classList.toggle('selected',p.colors[Number(btn.dataset.colorIndex)]?.name===color));
+    card.querySelectorAll('[data-action="color"][data-color-index]').forEach(btn => {
+      const active=p.colors[Number(btn.dataset.colorIndex)]?.name===color;
+      btn.classList.toggle('selected',active);
+      btn.setAttribute('aria-pressed',String(active));
+    });
   }
   if(currentId === id && modal.classList.contains('show')) { photoIndex = Math.max(0,p.photos.findIndex(ph => ph.color===color)); renderDetails(p); }
 }

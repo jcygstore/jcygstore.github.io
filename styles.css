@@ -522,3 +522,29 @@ html,body{background:#f8fbff}
   font-weight:900;
 }
 .admin-sale-button:hover:not(:disabled){background:#c3ebff!important;}
+
+
+/* JCYG STORE · Fotos JPG hasta 20 % más grandes que la versión anterior.
+   Se respeta el ancho disponible para no recortar fotografías ni invadir los controles.
+   No se modifica el tamaño de los videos ni de las fotografías PNG. */
+.feed > .card .product-slide img.product-photo-jpg{
+  width:min(100%,840px);
+  height:min(60%,43.5svh,450px);
+  max-width:840px;
+  max-height:450px;
+  object-fit:contain;
+}
+@media(min-width:800px){
+  .feed > .card .product-slide img.product-photo-jpg{
+    width:min(97.5%,750px);
+    height:min(54%,42svh,420px);
+    max-width:750px;
+    max-height:420px;
+  }
+}
+@media(min-width:800px) and (max-height:700px){
+  .feed > .card .product-slide img.product-photo-jpg{
+    height:min(45%,37.5svh,315px);
+    max-height:315px;
+  }
+}
