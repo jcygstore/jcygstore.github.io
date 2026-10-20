@@ -5,7 +5,7 @@ import { cloudinaryWorkerUrl } from './cloudinary-config.js';
 const $ = (id) => document.getElementById(id);
 const feed = $('feed'), modal = $('modal'), sheet = $('sheet'), toast = $('toast');
 const adminOverlay = $('admin-overlay'), adminContent = $('admin-content');
-const logoPath = 'assets/jcyg-store-logo.png';
+const logoPath = 'assets/jcyg-store-logo-3d.png';
 const blankPhoto = 'assets/imagen-no-disponible.svg';
 const PALETTE = [
   ['Negro','#111827'],['Blanco','#f8fafc'],['Gris','#9ca3af'],['Plata','#cbd5e1'],
