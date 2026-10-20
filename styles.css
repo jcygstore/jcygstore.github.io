@@ -696,3 +696,17 @@ html,body{background:#f8fbff}
     font-size: 9px !important;
   }
 }
+
+
+/* Corazón visible sobre el fondo: borde del color del círculo Detalles. */
+.feed > .card .actions .act[data-action="like"] .heart-ico svg,
+.feed > .card .actions .act[data-action="like"] .heart-ico svg path{
+  fill: currentColor !important;
+  stroke: #dce6f2 !important;
+  stroke-width: 1.8 !important;
+  vector-effect: non-scaling-stroke;
+  stroke-linejoin: round;
+  paint-order: stroke fill !important;
+}
+.feed > .card .actions .act[data-action="like"] .heart-ico{ color:#ffffff !important; }
+.feed > .card .actions .act[data-action="like"].liked .heart-ico{ color:#ff315c !important; }
