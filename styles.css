@@ -606,25 +606,28 @@ html,body{background:#f8fbff}
   width: 39px;
   height: 39px;
   fill: #fff;
-  stroke: #637087;
-  stroke-width: 1.35px;
+  stroke: none;
+  stroke-width: 0;
   filter: drop-shadow(0 2px 3px rgba(22,33,52,.35));
   transition: transform .2s ease, fill .18s ease, stroke .18s ease;
 }
 .feed > .card .actions .act[data-action="like"].liked .heart-ico svg {
   fill: #ff315c;
-  stroke: #ff315c;
+  stroke: none;
   transform: scale(1.08);
   filter: drop-shadow(0 2px 3px rgba(113,27,65,.32));
 }
 .feed > .card .actions .act[data-action="like"] .likes-text {
-  font-size: 13px;
-  line-height: 1.2;
-  margin-top: 0;
-  color: #31435f;
-  text-shadow: 0 1px 3px rgba(255,255,255,.9);
+  font-size: 10px;
+  line-height: 1.15;
+  font-weight: 800;
+  letter-spacing: normal;
+  font-variant-numeric: normal;
+  margin-top: 3px;
+  color: #52627a;
+  text-shadow: 0 1px 8px #fff;
 }
-.feed > .card .actions .act[data-action="like"].liked .likes-text {color:#d9204a;}
+.feed > .card .actions .act[data-action="like"].liked .likes-text {color:#52627a;}
 .feed > .card .actions .act[data-action="like"]:focus-visible {
   border-radius: 8px;
   outline: 2px solid #525fe2;
@@ -640,8 +643,15 @@ html,body{background:#f8fbff}
     width: 36px;
     height: 36px;
   }
-  .feed > .card .actions .act[data-action="like"] .likes-text {font-size: 12px;}
+  .feed > .card .actions .act[data-action="like"] .likes-text {font-size: 9px;}
 }
 @media (prefers-reduced-motion: reduce) {
   .feed > .card .actions .act[data-action="like"] .heart-ico svg {transition:none;}
+}
+
+/* El corazón es una silueta sólida (sin contorno); el número comparte
+   tipografía, tamaño y separación con Detalles / Consultar / Añadir. */
+.feed > .card .actions .act[data-action="like"] .heart-ico svg path {
+  stroke: none !important;
+  stroke-width: 0 !important;
 }
