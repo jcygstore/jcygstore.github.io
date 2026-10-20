@@ -451,3 +451,9 @@ html,body{background:#f8fbff}
     transform: translateY(-22dvh);
   }
 }
+
+
+/* JCYG STORE — soporte visual para JPG con bordes suaves y esquinas redondeadas. */
+.feed > .card .product-slide img{border-radius:24px;overflow:hidden;clip-path:inset(0 round 24px);box-shadow:0 14px 24px #66748a22;}
+.photo-tile img,.admin-item img,.cart-row img,.detailImg{border-radius:18px;}
+.feed > .card .product-slide img,.detailImg,.photo-tile img,.admin-item img{background:transparent;}

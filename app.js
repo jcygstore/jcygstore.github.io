@@ -5,7 +5,7 @@ import { cloudinaryWorkerUrl } from './cloudinary-config.js';
 const $ = (id) => document.getElementById(id);
 const feed = $('feed'), modal = $('modal'), sheet = $('sheet'), toast = $('toast');
 const adminOverlay = $('admin-overlay'), adminContent = $('admin-content');
-const logoPath = 'assets/jcyg-store-logo-3d.png';
+const logoPath = 'assets/jcyg-store-logo.png';
 const blankPhoto = 'assets/imagen-no-disponible.svg';
 const PALETTE = [
   ['Negro','#111827'],['Blanco','#f8fafc'],['Gris','#9ca3af'],['Plata','#cbd5e1'],
@@ -588,10 +588,10 @@ function renderEditor(){
     <div class="admin-panel"><h3>Fotos y videos del producto · Cloudinary</h3>
       
       <div class="editor-media-uploads">
-        <label class="admin-field">Agregar fotografías PNG<input id="product-photos" type="file" accept="image/png,.png" multiple></label>
+        <label class="admin-field">Agregar fotografías PNG o JPG<input id="product-photos" type="file" accept="image/png,image/jpeg,.png,.jpg,.jpeg" multiple></label>
         <label class="admin-field">Agregar videos MP4<input id="product-videos" type="file" accept="video/mp4,.mp4" multiple></label>
       </div>
-      <div class="editor-media-hint">Hasta 10 archivos entre fotos y videos. Videos MP4 de máximo 50 MB y 60 segundos.</div>
+      <div class="editor-media-hint">Hasta 10 archivos entre fotos y videos. Fotos PNG, JPG o JPEG de máximo 10 MB. Videos MP4 de máximo 50 MB y 60 segundos.</div>
       <div id="editor-photos" class="photo-list"></div></div>
     <div class="admin-panel"><h3>Características completas</h3><label class="admin-field">Una característica por línea, con formato Nombre: Detalle
       <textarea name="specs" rows="9">${esc((p?.specs||[]).map(s=>`${s.label}: ${s.value}`).join('\n'))}</textarea>
@@ -683,7 +683,7 @@ async function saveSettings(form){
 function parseSpecs(value){return String(value).split(/\r?\n/).map(line=>line.trim()).filter(Boolean).map(line=>{
   const pos=line.indexOf(':');return pos<0?{label:'Detalle',value:line.slice(0,550)}:{label:line.slice(0,pos).trim().slice(0,90)||'Detalle',value:line.slice(pos+1).trim().slice(0,550)};
 }).slice(0,60);}
-// ===== Cloudinary: fotos PNG transparentes; el API Secret permanece EN EL WORKER. =====
+// ===== Cloudinary: fotos PNG/JPG/JPEG; el API Secret permanece EN EL WORKER. =====
 const CLOUDINARY_PREFIX = 'jcyg-store/products/';
 const isCloudinaryPublicId = v => typeof v === 'string' && v.startsWith(CLOUDINARY_PREFIX) && /^[a-z0-9_\-/]+$/i.test(v);
 function workerReady(){
@@ -700,53 +700,59 @@ async function waitLimit(promise, milliseconds, detail) {
   } finally { clearTimeout(handle); }
 }
 async function makePNG(file) {
-  if (file.type !== 'image/png' || !/\.png$/i.test(file.name)) throw Error('Solo se aceptan archivos PNG.');
-  if (file.size > 10 * 1024 * 1024) throw Error('El PNG supera 10 MB. Elige uno más ligero.');
+  const isPng = file.type === 'image/png' || /\.png$/i.test(file.name);
+  const isJpg = ['image/jpeg', 'image/jpg'].includes(file.type) || /\.(jpe?g)$/i.test(file.name);
+  if (!isPng && !isJpg) throw Error('Solo se aceptan imágenes PNG, JPG o JPEG.');
+  if (file.size > 10 * 1024 * 1024) throw Error('La imagen supera 10 MB. Elige un archivo más ligero.');
   const local = URL.createObjectURL(file);
   try {
-    const img = new Image(); img.src = local;
-    await waitLimit(img.decode(), 15000, 'La imagen no pudo abrirse. Comprueba que sea un PNG válido.');
+    const img = new Image();
+    img.src = local;
+    await waitLimit(img.decode(), 15000, 'La imagen no pudo abrirse. Comprueba que el archivo sea válido.');
     if (img.naturalWidth > 6000 || img.naturalHeight > 6000) throw Error('Imagen demasiado grande. Reduce su tamaño.');
-    // Procesar en un lienzo de máximo 1600 px para no sobrecargar los móviles.
     const scale = Math.min(1, 1600 / Math.max(img.naturalWidth, img.naturalHeight));
-    const canvas = document.createElement('canvas');
-    canvas.width = Math.max(1, Math.round(img.naturalWidth * scale));
-    canvas.height = Math.max(1, Math.round(img.naturalHeight * scale));
-    const ctx = canvas.getContext('2d', {willReadFrequently: true});
-    if (!ctx) throw Error('El navegador no permite procesar imágenes.');
-    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-    const w = canvas.width, h = canvas.height;
-    const data = ctx.getImageData(0, 0, w, h).data;
-    let hasTransparency = false;
-    let left = w, top = h, right = -1, bottom = -1;
-    // 10/255 conserva contornos antialias y sombras sin contar píxeles casi invisibles.
-    for (let y = 0; y < h; y++) {
-      for (let x = 0; x < w; x++) {
-        const alpha = data[(y * w + x) * 4 + 3];
-        if (alpha < 245) hasTransparency = true;
-        if (alpha >= 10) {
-          if (x < left) left = x;
-          if (x > right) right = x;
-          if (y < top) top = y;
-          if (y > bottom) bottom = y;
+    const base = document.createElement('canvas');
+    base.width = Math.max(1, Math.round(img.naturalWidth * scale));
+    base.height = Math.max(1, Math.round(img.naturalHeight * scale));
+    const baseCtx = base.getContext('2d', {willReadFrequently: true});
+    if (!baseCtx) throw Error('El navegador no permite procesar imágenes.');
+    baseCtx.drawImage(img, 0, 0, base.width, base.height);
+
+    let sourceCanvas = base;
+    if (isPng) {
+      const w = base.width, h = base.height;
+      const data = baseCtx.getImageData(0, 0, w, h).data;
+      let hasTransparency = false;
+      let left = w, top = h, right = -1, bottom = -1;
+      for (let y = 0; y < h; y++) {
+        for (let x = 0; x < w; x++) {
+          const alpha = data[(y * w + x) * 4 + 3];
+          if (alpha < 245) hasTransparency = true;
+          if (alpha >= 10) {
+            if (x < left) left = x;
+            if (x > right) right = x;
+            if (y < top) top = y;
+            if (y > bottom) bottom = y;
+          }
         }
       }
+      if (hasTransparency && right >= left && bottom >= top) {
+        const objW = right - left + 1, objH = bottom - top + 1;
+        const padding = Math.max(5, Math.round(Math.max(objW, objH) * 0.045));
+        left = Math.max(0, left - padding);
+        right = Math.min(w - 1, right + padding);
+        top = Math.max(0, top - padding);
+        bottom = Math.min(h - 1, bottom + padding);
+        const trimmed = document.createElement('canvas');
+        trimmed.width = right - left + 1;
+        trimmed.height = bottom - top + 1;
+        const trimmedCtx = trimmed.getContext('2d');
+        trimmedCtx.drawImage(base, left, top, trimmed.width, trimmed.height, 0, 0, trimmed.width, trimmed.height);
+        sourceCanvas = trimmed;
+      }
     }
-    if (!hasTransparency) throw Error('Esta imagen no tiene transparencia. Sube un PNG sin fondo.');
-    if (right < left || bottom < top) throw Error('El PNG está vacío. Añade una foto del producto.');
-    // Mantener un margen visible cercano al 4% alrededor del objeto.
-    const objW = right - left + 1, objH = bottom - top + 1;
-    const padding = Math.max(5, Math.round(Math.max(objW, objH) * 0.045));
-    left = Math.max(0, left - padding);
-    right = Math.min(w - 1, right + padding);
-    top = Math.max(0, top - padding);
-    bottom = Math.min(h - 1, bottom + padding);
-    const trimmed = document.createElement('canvas');
-    trimmed.width = right - left + 1;
-    trimmed.height = bottom - top + 1;
-    trimmed.getContext('2d').drawImage(canvas, left, top, trimmed.width, trimmed.height,
-      0, 0, trimmed.width, trimmed.height);
-    return await new Promise((resolve, reject) => trimmed.toBlob(
+
+    return await new Promise((resolve, reject) => sourceCanvas.toBlob(
       blob => blob ? resolve(blob) : reject(Error('No se pudo preparar la fotografía.')),
       'image/png'
     ));
@@ -917,8 +923,8 @@ adminContent.addEventListener('change',e=>{
   if(e.target.id==='product-photos'){
     const input=e.target;const files=[...input.files];input.value='';
     if(files.length+editorPhotos.length>10){notify('Máximo 10 fotos y videos por producto.');return;}
-    if(files.some(file=>file.type!=='image/png'||!/\.png$/i.test(file.name)||file.size>10*1024*1024)){
-      notify('Selecciona únicamente archivos .png de máximo 10 MB.');return;
+    if(files.some(file=>{ const okType=['image/png','image/jpeg','image/jpg',''].includes(file.type) || /\.(png|jpe?g)$/i.test(file.name); return !okType || file.size>10*1024*1024; })){
+      notify('Selecciona imágenes PNG, JPG o JPEG de máximo 10 MB.');return;
     }
     files.forEach(file=>editorPhotos.push({type:'image',id:crypto.randomUUID(),url:'',path:'',color:'',file,preview:URL.createObjectURL(file)}));
     renderEditorPhotos();
