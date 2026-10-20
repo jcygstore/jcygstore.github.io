@@ -454,6 +454,71 @@ html,body{background:#f8fbff}
 
 
 /* JCYG STORE — soporte visual para JPG con bordes suaves y esquinas redondeadas. */
-.feed > .card .product-slide img{border-radius:24px;overflow:hidden;clip-path:inset(0 round 24px);box-shadow:0 14px 24px #66748a22;}
+.feed > .card .product-slide img.product-photo-jpg{border-radius:22px;overflow:hidden;}
 .photo-tile img,.admin-item img,.cart-row img,.detailImg{border-radius:18px;}
 .feed > .card .product-slide img,.detailImg,.photo-tile img,.admin-item img{background:transparent;}
+
+
+/* JCYG STORE · Compatibilidad Chrome / Safari · 20 de octubre de 2026 */
+/* Mantiene Safari estable cuando cambia la altura de su barra de navegación. */
+@supports (-webkit-touch-callout: none) {
+  .feed{height:100vh;height:100svh;scroll-behavior:auto;}
+  .feed > .card{height:100vh;height:100svh;min-height:0;}
+  .product-stage{inset:clamp(106px,12svh,155px) 12px clamp(215px,24svh,305px);}
+  .product-stage .product-gallery{touch-action:auto;overscroll-behavior-x:auto;}
+  .feed > .card .product-stage img{filter:none!important;backface-visibility:hidden;}
+  .feed > .card .product-slide img.product-photo-jpg{clip-path:none;}
+  .product-gallery-dots{transform:translate3d(-50%,0,0);}
+}
+@supports (-webkit-touch-callout: none) {
+  @media(max-width:620px){
+    .product-stage{inset:clamp(100px,12svh,145px) 10px clamp(205px,24svh,295px);}
+  }
+}
+/* Video de portada 25% mayor que la última versión compacta. */
+.product-stage .product-slide video.jcyg-product-video,
+.feed > .card .product-slide img.product-photo-jpg{
+  position:relative;
+  width:min(95%,700px);
+  height:min(50%,36.25svh,375px);
+  max-width:700px;
+  max-height:375px;
+  object-fit:contain;
+  object-position:center;
+  top:-3svh;
+  transform:none;
+  flex-shrink:0;
+}
+/* Los JPG comparten el tamaño de los videos; PNG conserva el anterior. */
+.feed > .card .product-slide img.product-photo-jpg{
+  border-radius:22px;
+  background:transparent;
+  box-shadow:none;
+}
+@media(min-width:800px){
+  .product-stage .product-slide video.jcyg-product-video,
+  .feed > .card .product-slide img.product-photo-jpg{
+    width:min(81.25%,625px);
+    height:min(45%,35svh,350px);
+    max-width:625px;
+    max-height:350px;
+    top:-14svh;
+    transform:none;
+  }
+}
+@media(min-width:800px) and (max-height:700px){
+  .product-stage .product-slide video.jcyg-product-video,
+  .feed > .card .product-slide img.product-photo-jpg{
+    height:min(37.5%,31.25svh,262px);
+    top:-22svh;
+  }
+}
+/* Botón + Venta: celeste bebé, texto azul, al extremo derecho. */
+.admin-sale-button,.admin-primary.admin-sale-button{
+  background:#d7f3ff!important;
+  color:#1461af!important;
+  border:1px solid #b2e3fc!important;
+  box-shadow:0 3px 9px rgba(74,167,224,.13)!important;
+  font-weight:900;
+}
+.admin-sale-button:hover:not(:disabled){background:#c3ebff!important;}

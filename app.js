@@ -5,7 +5,7 @@ import { cloudinaryWorkerUrl } from './cloudinary-config.js';
 const $ = (id) => document.getElementById(id);
 const feed = $('feed'), modal = $('modal'), sheet = $('sheet'), toast = $('toast');
 const adminOverlay = $('admin-overlay'), adminContent = $('admin-content');
-const logoPath = 'assets/jcyg-store-logo.png';
+const logoPath = 'assets/jcyg-store-logo-3d.png?v=20261020';
 const blankPhoto = 'assets/imagen-no-disponible.svg';
 const PALETTE = [
   ['Negro','#111827'],['Blanco','#f8fafc'],['Gris','#9ca3af'],['Plata','#cbd5e1'],
@@ -68,21 +68,22 @@ const pausedVideosExcept = except => {
 };
 function mediaSlideHTML(item, name, i, total, eager=false, priority=false){
   if(isVideo(item))return `<video class="jcyg-product-video" controls playsinline preload="none" aria-label="${esc(name)} · video ${i+1} de ${total}" src="${esc(safeVideo(item.url))}"></video>`;
-  return `<img src="${esc(displayPhoto(item.url))}" data-image-fallback="allowed" alt="${esc(name)} · foto ${i+1} de ${total}" loading="${eager?'eager':'lazy'}" decoding="async" ${priority?'fetchpriority="high"':''}>`;
+  return `<img class="${item.sourceFormat==='jpg'?'product-photo-jpg':'product-photo-png'}" src="${esc(displayPhoto(item.url,item.sourceFormat))}" data-image-fallback="allowed" alt="${esc(name)} · foto ${i+1} de ${total}" loading="${eager?'eager':'lazy'}" decoding="${eager?'sync':'async'}" ${priority?'fetchpriority="high"':''}>`;
 }
 function detailMediaHTML(item,name){
   if(isVideo(item))return `<video id="detail-photo" class="gallery-main detail-video jcyg-product-video" controls playsinline preload="none" src="${esc(safeVideo(item.url))}" aria-label="Video de ${esc(name)}"></video>`;
-  return `<img class="gallery-main" id="detail-photo" data-image-fallback="allowed" src="${esc(displayPhoto(item.url))}" alt="${esc(name)}">`;
+  return `<img class="gallery-main" id="detail-photo" data-image-fallback="allowed" src="${esc(displayPhoto(item.url,item.sourceFormat))}" alt="${esc(name)}">`;
 }
 function mediaThumbHTML(item,name){
-  return isVideo(item) ? `<span class="video-thumb-placeholder" aria-hidden="true">▶ Video</span>` : `<img data-image-fallback="allowed" src="${esc(displayPhoto(item.url))}" alt="${esc(name)}">`;
+  return isVideo(item) ? `<span class="video-thumb-placeholder" aria-hidden="true">▶ Video</span>` : `<img data-image-fallback="allowed" src="${esc(displayPhoto(item.url,item.sourceFormat))}" alt="${esc(name)}">`;
 }
 const validColor = (s) => /^#[a-fA-F0-9]{6}$/.test(String(s || '')) ? s : '#cbd5e1';
 // Presentación: recorta visualmente márgenes transparentes de PNG existentes
 // almacenados en Cloudinary, sin cambiar el enlace original en Firestore.
 // e_trim es una transformación estándar de Cloudinary, no eliminación de fondo.
-function displayPhoto(url) {
+function displayPhoto(url,sourceFormat) {
   const original = safeImage(url);
+  if (sourceFormat === 'jpg') return original; // Conserva el encuadre completo de fotografías JPG.
   if (/^https:\/\/res\.cloudinary\.com\/[^/]+\/image\/upload\//i.test(original)
       && !/\/e_trim(?:\/|,)/i.test(original)) {
     return original.replace('/image/upload/', '/image/upload/e_trim/');
@@ -107,7 +108,7 @@ const normalize = (doc) => ({
   oldPrice:Number(doc.oldPrice) || 0, published:doc.published !== false, outOfStock:Boolean(doc.outOfStock) || Number(doc.stock)===0, code:String(doc.code||'Sin asignar'),
   stockByColor:doc.stockByColor === true,
   colors:Array.isArray(doc.colors) ? doc.colors.map(c => ({name:String(c.name || '').slice(0,35),hex:validColor(c.hex),qty:Math.max(0,Math.floor(Number(c.qty)||0))})) : [],
-  photos:Array.isArray(doc.photos) ? doc.photos.slice(0,10).map(p => ({type:p.type==='video'?'video':'image',url:p.type==='video'?safeVideo(p.url):safeImage(p.url),path:String(p.path || ''),color:String(p.color || '')})).filter(p=>p.url) : [],
+  photos:Array.isArray(doc.photos) ? doc.photos.slice(0,10).map(p => ({type:p.type==='video'?'video':'image',url:p.type==='video'?safeVideo(p.url):safeImage(p.url),path:String(p.path || ''),color:String(p.color || ''),sourceFormat:p.sourceFormat==='jpg'?'jpg':'png'})).filter(p=>p.url) : [],
   specs:Array.isArray(doc.specs) ? doc.specs.map(s => ({label:String(s.label || 'Detalle'),value:String(s.value || '')})) : []
 });
 const getProduct = id => products.find(p => p.id === id);
@@ -142,7 +143,7 @@ function renderFeed() {
     return `<article class="card" data-id="${esc(p.id)}">
       <div class="product-stage">
         <div class="product-gallery" tabindex="0" role="region" aria-roledescription="carrusel" aria-label="Fotos y videos de ${esc(p.name)}. Desliza a la izquierda o derecha" data-current-photo="${initialPhoto}" data-start-photo="${initialPhoto}">
-          ${photos.map((ph,i)=>`<div class="product-slide">${mediaSlideHTML(ph,p.name,i,photos.length,index < 2 && (i===initialPhoto || i===Math.min(photos.length-1,initialPhoto+1)),index===0&&i===initialPhoto)}</div>`).join('')}
+          ${photos.map((ph,i)=>`<div class="product-slide">${mediaSlideHTML(ph,p.name,i,photos.length,index < 3 && (i===initialPhoto || i===Math.min(photos.length-1,initialPhoto+1)),index===0&&i===initialPhoto)}</div>`).join('')}
         </div>
         ${photos.length > 1 ? `<div class="product-gallery-dots" role="group" aria-label="Cambiar imagen o video">${photos.map((ph,i)=>`<button type="button" class="photo-dot ${i===initialPhoto?'selected':''}" data-action="photo-dot" data-photo-index="${i}" aria-pressed="${i===initialPhoto}" aria-label="Ver ${isVideo(ph)?'video':'foto'} ${i+1} de ${photos.length}"><span></span></button>`).join('')}</div>` : ''}
       </div>
@@ -171,6 +172,26 @@ function renderFeed() {
     const initial=Number(gallery?.dataset.startPhoto||0);
     if(initial>0) gallery.scrollLeft=initial*gallery.clientWidth;
   }
+  // En Safari el primer cálculo del ancho puede ocurrir antes del montaje completo.
+  requestAnimationFrame(()=>{
+    cards.forEach(card=>{
+      const gallery=card.querySelector('.product-gallery');
+      if(!gallery||!gallery.clientWidth)return;
+      const i=Number(gallery.dataset.currentPhoto||gallery.dataset.startPhoto||0);
+      if(i>0)gallery.scrollLeft=i*gallery.clientWidth;
+    });
+  });
+  // Preparar fotos de la ficha actual y la siguiente antes de que Safari las necesite.
+  if('IntersectionObserver' in window){
+    const preloader=new IntersectionObserver(entries=>entries.forEach(entry=>{
+      if(!entry.isIntersecting)return;
+      const cardsList=[entry.target,entry.target.nextElementSibling].filter(n=>n?.classList?.contains('card'));
+      cardsList.forEach(card=>card.querySelectorAll('.product-slide img[loading="lazy"]').forEach((img,i)=>{
+        if(i<2)img.loading='eager';
+      }));
+    }),{root:feed,rootMargin:'95% 0px 95% 0px',threshold:0});
+    cards.forEach(card=>preloader.observe(card));
+  }
 }
 function updateGalleryDots(card,index){
   const gallery=card?.querySelector('.product-gallery');if(!gallery)return;
@@ -189,7 +210,7 @@ function showCardPhoto(card,index,animated=false){
   const gallery=card?.querySelector('.product-gallery');if(!gallery)return;
   const length=gallery.querySelectorAll('.product-slide').length;
   const safeIndex=Math.max(0,Math.min(length-1,index));
-  gallery.scrollTo({left:safeIndex*gallery.clientWidth,behavior:animated?'smooth':'instant'});
+  gallery.scrollTo({left:safeIndex*gallery.clientWidth,behavior:animated?'smooth':'auto'});
   updateGalleryDots(card,safeIndex);
 }
 // El carrusel usa desplazamiento nativo; el scroll vertical sigue perteneciendo al catálogo.
@@ -867,8 +888,8 @@ async function saveProduct(form){
         status.textContent=`Subiendo ${video?'video':'foto'} ${i+1}/${editorPhotos.length} · 0%`;
         const uploaded=await (video?cloudinaryUploadMP4(file,signed,pct=>{status.textContent=`Subiendo video ${i+1}/${editorPhotos.length} · ${pct}%`;}):cloudinaryUploadPNG(file,signed,pct=>{status.textContent=`Subiendo foto ${i+1}/${editorPhotos.length} · ${pct}%`;}));
         uploadedPaths.push({path:uploaded.public_id,type:video?'video':'image'});
-        photos.push({type:video?'video':'image',url:uploaded.secure_url,path:uploaded.public_id,color:pic.color||''});
-      } else photos.push({type:isVideo(pic)?'video':'image',url:pic.url,path:pic.path||'',color:pic.color||''});
+        photos.push({type:video?'video':'image',url:uploaded.secure_url,path:uploaded.public_id,color:pic.color||'',sourceFormat:video?'mp4':(pic.sourceFormat==='jpg'?'jpg':'png')});
+      } else photos.push({type:isVideo(pic)?'video':'image',url:pic.url,path:pic.path||'',color:pic.color||'',sourceFormat:isVideo(pic)?'mp4':(pic.sourceFormat==='jpg'?'jpg':'png')});
     }
     status.textContent='Guardando producto en Firebase Firestore…';
     const payload={name,code,desc,price,oldPrice,stock,outOfStock,stockByColor:editorColorStockMode,published:form.elements.published.value==='true',
@@ -926,7 +947,7 @@ adminContent.addEventListener('change',e=>{
     if(files.some(file=>{ const okType=['image/png','image/jpeg','image/jpg',''].includes(file.type) || /\.(png|jpe?g)$/i.test(file.name); return !okType || file.size>10*1024*1024; })){
       notify('Selecciona imágenes PNG, JPG o JPEG de máximo 10 MB.');return;
     }
-    files.forEach(file=>editorPhotos.push({type:'image',id:crypto.randomUUID(),url:'',path:'',color:'',file,preview:URL.createObjectURL(file)}));
+    files.forEach(file=>editorPhotos.push({type:'image',sourceFormat:/\.jpe?g$/i.test(file.name)||file.type==='image/jpeg'?'jpg':'png',id:crypto.randomUUID(),url:'',path:'',color:'',file,preview:URL.createObjectURL(file)}));
     renderEditorPhotos();
   }
   if(e.target.id==='product-videos'){
