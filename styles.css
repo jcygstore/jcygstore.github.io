@@ -577,3 +577,71 @@ html,body{background:#f8fbff}
   .feed .no-products .store-footer {font-size:9px;}
   .feed .card.last-product-card .info {bottom:calc(49px + env(safe-area-inset-bottom, 0px));}
 }
+
+
+/* JCYG STORE — ajustes de interfaz (sin modificar la compatibilidad Safari). */
+/* Catálogo 2026 ligeramente más arriba, sin mover el logo ni el encabezado. */
+.feed > .card .top > .admin-entry {
+  position: relative;
+  top: -6px;
+}
+@media (max-width: 620px) {
+  .feed > .card .top > .admin-entry { top: -7px; }
+}
+
+/* Corazón estilo TikTok: sin círculo blanco, con contador independiente. */
+.feed > .card .actions .act[data-action="like"] .heart-ico,
+.feed > .card .actions .act[data-action="like"].liked .heart-ico {
+  width: 50px;
+  height: 50px;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+.feed > .card .actions .act[data-action="like"] .heart-ico svg {
+  width: 39px;
+  height: 39px;
+  fill: #fff;
+  stroke: #637087;
+  stroke-width: 1.35px;
+  filter: drop-shadow(0 2px 3px rgba(22,33,52,.35));
+  transition: transform .2s ease, fill .18s ease, stroke .18s ease;
+}
+.feed > .card .actions .act[data-action="like"].liked .heart-ico svg {
+  fill: #ff315c;
+  stroke: #ff315c;
+  transform: scale(1.08);
+  filter: drop-shadow(0 2px 3px rgba(113,27,65,.32));
+}
+.feed > .card .actions .act[data-action="like"] .likes-text {
+  font-size: 13px;
+  line-height: 1.2;
+  margin-top: 0;
+  color: #31435f;
+  text-shadow: 0 1px 3px rgba(255,255,255,.9);
+}
+.feed > .card .actions .act[data-action="like"].liked .likes-text {color:#d9204a;}
+.feed > .card .actions .act[data-action="like"]:focus-visible {
+  border-radius: 8px;
+  outline: 2px solid #525fe2;
+  outline-offset: 4px;
+}
+@media (max-width: 540px) {
+  .feed > .card .actions .act[data-action="like"] .heart-ico,
+  .feed > .card .actions .act[data-action="like"].liked .heart-ico {
+    width: 45px;
+    height: 45px;
+  }
+  .feed > .card .actions .act[data-action="like"] .heart-ico svg {
+    width: 36px;
+    height: 36px;
+  }
+  .feed > .card .actions .act[data-action="like"] .likes-text {font-size: 12px;}
+}
+@media (prefers-reduced-motion: reduce) {
+  .feed > .card .actions .act[data-action="like"] .heart-ico svg {transition:none;}
+}
