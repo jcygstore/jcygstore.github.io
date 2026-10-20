@@ -421,3 +421,33 @@ html,body{background:#f8fbff}
 .editor-media-hint{font-size:12px;color:#64748b;margin-top:8px;line-height:1.4}
 .photo-tile .admin-media-preview{width:100%;height:95px;border-radius:8px;background:#111827;object-fit:contain;}
 @media(max-width:620px){.editor-media-uploads{grid-template-columns:1fr}}
+
+
+/* JCYG STORE · Video de portada compacto.
+   El video queda dentro de la zona superior al icono "Me gusta".
+   No cambia el tamaño de las fotografías ni el carrusel. */
+.product-stage .product-slide video.jcyg-product-video {
+  width: min(76%, 560px);
+  height: min(40%, 29dvh, 300px);
+  max-width: 560px;
+  max-height: 300px;
+  object-fit: contain;
+  object-position: center;
+  transform: translateY(-3dvh);
+}
+@media (min-width: 800px) {
+  .product-stage .product-slide video.jcyg-product-video {
+    width: min(65%, 500px);
+    height: min(36%, 28dvh, 280px);
+    max-width: 500px;
+    max-height: 280px;
+    transform: translateY(-14dvh);
+  }
+}
+
+@media (min-width: 800px) and (max-height: 700px) {
+  .product-stage .product-slide video.jcyg-product-video {
+    height: min(30%, 25dvh, 210px);
+    transform: translateY(-22dvh);
+  }
+}
