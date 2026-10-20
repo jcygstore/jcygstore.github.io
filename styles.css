@@ -655,3 +655,44 @@ html,body{background:#f8fbff}
   stroke: none !important;
   stroke-width: 0 !important;
 }
+
+
+/* Corrección definitiva del corazón: el SVG ahora es una silueta rellena
+   en app.js, sin trazo. Estas reglas impiden heredar el borde gris original. */
+.feed > .card .actions .act[data-action="like"] .heart-ico,
+.feed > .card .actions .act[data-action="like"].liked .heart-ico,
+.feed > .card .actions .act[data-action="like"]:hover .heart-ico {
+  color: #fff !important;
+  background: transparent !important;
+  border: 0 !important;
+  outline: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  -webkit-box-shadow: none !important;
+}
+.feed > .card .actions .act[data-action="like"].liked .heart-ico,
+.feed > .card .actions .act[data-action="like"].liked:hover .heart-ico {
+  color: #ff315c !important;
+}
+.feed > .card .actions .act[data-action="like"] .heart-ico svg,
+.feed > .card .actions .act[data-action="like"] .heart-ico svg path {
+  fill: currentColor !important;
+  stroke: none !important;
+  stroke-width: 0 !important;
+  filter: none !important;
+  paint-order: normal !important;
+}
+.feed > .card .actions .act[data-action="like"] .likes-text {
+  font-size: 10px !important;
+  font-weight: 800 !important;
+  line-height: 1.15 !important;
+  margin-top: 3px !important;
+  letter-spacing: normal !important;
+  font-variant-numeric: normal !important;
+  color: #52627a !important;
+}
+@media (max-width:540px) {
+  .feed > .card .actions .act[data-action="like"] .likes-text {
+    font-size: 9px !important;
+  }
+}
