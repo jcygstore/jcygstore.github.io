@@ -133,14 +133,14 @@ function header() {
 function renderFeed() {
   let floating=document.getElementById('cart-floating');if(!floating){floating=document.createElement('button');floating.id='cart-floating';floating.type='button';floating.innerHTML=`${cartSvg}<span class="cart-count">0</span>`;floating.setAttribute('aria-label','Abrir carrito');floating.addEventListener('click',cartPanel);document.body.appendChild(floating);}updateCartBadges();
   if(!products.length) {
-    feed.innerHTML = `<section class="no-products"><div class="empty-center"><img src="${logoPath}" alt="JCYG STORE"><h2>Pronto tendremos novedades</h2><p>Estamos preparando nuestro catálogo de productos.</p><button class="tag admin-entry" data-action="admin" type="button">Catálogo 2026 · Administrador</button></div></section>`;
+    feed.innerHTML = `<section class="no-products"><div class="empty-center"><img src="${logoPath}" alt="JCYG STORE"><h2>Pronto tendremos novedades</h2><p>Estamos preparando nuestro catálogo de productos.</p><button class="tag admin-entry" data-action="admin" type="button">Catálogo 2026 · Administrador</button></div><footer class="store-footer">©2026 JCYG STORE. Todos los derechos reservados.</footer></section>`;
     return;
   }
   feed.innerHTML = products.map((p, index) => {
     const selected = selection(p), off = discount(p);
     const photos = p.photos.length ? p.photos : [{url:blankPhoto,color:''}];
     const initialPhoto = Math.max(0, selected ? photos.findIndex(ph=>ph.color===selected) : 0);
-    return `<article class="card" data-id="${esc(p.id)}">
+    return `<article class="card ${index === products.length - 1 ? 'last-product-card' : ''}" data-id="${esc(p.id)}">
       <div class="product-stage">
         <div class="product-gallery" tabindex="0" role="region" aria-roledescription="carrusel" aria-label="Fotos y videos de ${esc(p.name)}. Desliza a la izquierda o derecha" data-current-photo="${initialPhoto}" data-start-photo="${initialPhoto}">
           ${photos.map((ph,i)=>`<div class="product-slide">${mediaSlideHTML(ph,p.name,i,photos.length,index < 3 && (i===initialPhoto || i===Math.min(photos.length-1,initialPhoto+1)),index===0&&i===initialPhoto)}</div>`).join('')}
@@ -158,7 +158,7 @@ function renderFeed() {
         <button class="act" type="button" data-action="details" aria-label="Ver características"><span class="ico">${detailsSvg}</span><small>Detalles</small></button>
         <button class="act consult-side" type="button" data-action="consult" aria-label="Consultar por WhatsApp"><span class="ico">${waSvg}</span><small>Consultar</small></button>
         <button class="act cart-side" type="button" data-action="cart-add" aria-label="Añadir al carrito" ${unavailable(p)?'disabled title="Producto agotado"':''}><span class="ico">${cartPlusSvg}</span><small>Añadir</small></button>
-      </div></article>`;
+      </div>${index === products.length - 1 ? '<footer class="store-footer">©2026 JCYG STORE. Todos los derechos reservados.</footer>' : ''}</article>`;
   }).join('');
   const cards = [...feed.querySelectorAll('.card')];
   if ('IntersectionObserver' in window) {

@@ -548,3 +548,32 @@ html,body{background:#f8fbff}
     max-height:315px;
   }
 }
+
+
+/* Pie de página del catálogo: solo en el último producto (sin pantalla extra).
+   Se deja libre el área del precio y se respeta la zona segura de iPhone. */
+.feed .card.last-product-card .store-footer,
+.feed .no-products .store-footer {
+  position:absolute;
+  left:12px;
+  right:12px;
+  bottom:calc(8px + env(safe-area-inset-bottom, 0px));
+  z-index:7;
+  padding:0;
+  color:#64748b;
+  text-align:center;
+  font-size:10px;
+  font-weight:600;
+  line-height:1.25;
+  letter-spacing:0;
+  pointer-events:none;
+}
+.feed .card.last-product-card .info {
+  bottom:calc(52px + env(safe-area-inset-bottom, 0px));
+}
+.feed .no-products {position:relative;}
+@media (max-width:540px) {
+  .feed .card.last-product-card .store-footer,
+  .feed .no-products .store-footer {font-size:9px;}
+  .feed .card.last-product-card .info {bottom:calc(49px + env(safe-area-inset-bottom, 0px));}
+}
