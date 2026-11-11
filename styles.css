@@ -710,3 +710,112 @@ html,body{background:#f8fbff}
 }
 .feed > .card .actions .act[data-action="like"] .heart-ico{ color:#ffffff !important; }
 .feed > .card .actions .act[data-action="like"].liked .heart-ico{ color:#ff315c !important; }
+
+
+/* JCYG STORE · Fluidez estable en Chrome / Safari (octubre 2026)
+   Una altura medida al abrir la página, sin cambios durante el gesto aunque
+   aparezcan/desaparezcan las barras del navegador. */
+html {-webkit-text-size-adjust:100%;}
+.feed {
+  height:var(--jcyg-stable-screen-height,100dvh) !important;
+  overflow-x:hidden;
+  scroll-behavior:auto !important;
+  scroll-snap-type:y mandatory;
+  overscroll-behavior-y:contain;
+  -webkit-overflow-scrolling:touch;
+}
+.feed > .card {
+  height:var(--jcyg-stable-screen-height,100dvh) !important;
+  min-height:0 !important;
+  scroll-snap-align:start;
+  scroll-snap-stop:normal;
+}
+/* Permite que Safari distinga el deslizamiento lateral del vertical sin
+   bloquear el desplazamiento por productos cuando el dedo toca la imagen. */
+.product-stage .product-gallery {
+  touch-action:pan-x pan-y;
+  overscroll-behavior-x:contain;
+  -webkit-overflow-scrolling:touch;
+}
+/* No crear capas GPU permanentes para todas las fotos del catálogo. */
+.feed > .card .product-slide img {
+  will-change:auto !important;
+}
+@media (prefers-reduced-motion:reduce){
+  .product-stage .product-gallery {scroll-behavior:auto;}
+}
+
+
+/* JCYG STORE · Edición navideña sutil (sin animaciones extra para cuidar Safari). */
+.feed > .card {
+  background: linear-gradient(135deg,
+    #ffffff 0%,
+    #effaf5 27%,
+    #f3f0ff 54%,
+    #fff1f2 80%,
+    #fffaf0 100%) !important;
+}
+.feed > .card::before {
+  background:
+    radial-gradient(circle at 78% 18%, rgba(189,234,255,.78) 0, transparent 25%),
+    radial-gradient(circle at 12% 78%, rgba(191,249,237,.72) 0, transparent 27%),
+    radial-gradient(circle at 92% 85%, rgba(255,209,222,.60) 0, transparent 25%),
+    radial-gradient(circle at 50% 45%, rgba(221,212,255,.52) 0, transparent 32%),
+    radial-gradient(circle at 12% 18%, rgba(197,228,205,.48) 0, transparent 20%),
+    radial-gradient(circle at 88% 24%, rgba(255,224,194,.40) 0, transparent 19%);
+}
+
+/* Guirnalda estática con luces pastel: decorativa, ligera y no bloquea gestos. */
+.feed > .card .top::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 16px;
+  pointer-events: none;
+  z-index: 0;
+  opacity: .88;
+  background:
+    radial-gradient(circle at 7% 9px, #f2c66b 0 3px, transparent 4px),
+    radial-gradient(circle at 21% 9px, #df7180 0 3px, transparent 4px),
+    radial-gradient(circle at 35% 9px, #579b78 0 3px, transparent 4px),
+    radial-gradient(circle at 50% 9px, #9a8be8 0 3px, transparent 4px),
+    radial-gradient(circle at 65% 9px, #f2c66b 0 3px, transparent 4px),
+    radial-gradient(circle at 79% 9px, #df7180 0 3px, transparent 4px),
+    radial-gradient(circle at 93% 9px, #579b78 0 3px, transparent 4px),
+    linear-gradient(180deg, transparent 0 5px, rgba(88,130,101,.68) 5px 6px, transparent 6px);
+}
+.feed > .card .top > .logo,
+.feed > .card .top > .admin-entry {
+  position: relative;
+  z-index: 1;
+}
+
+/* La marca conserva su nombre; se añade un guiño navideño junto al rótulo. */
+.feed > .card .eyebrow {
+  color: #39785c !important;
+}
+.feed > .card .eyebrow::after {
+  content: "  ✦ ESPECIAL NAVIDAD";
+  color: #b65c68;
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: 1.15px;
+  white-space: nowrap;
+}
+
+/* El acceso de administración mantiene su forma y gana un detalle dorado/verde. */
+.feed > .card .top > .admin-entry {
+  color: #4d725d !important;
+  border-color: #e6d8ad !important;
+  background: linear-gradient(135deg, #fffefa 0%, #fff9e9 100%) !important;
+  box-shadow: 0 7px 20px rgba(145,111,54,.12) !important;
+}
+
+@media (max-width: 380px) {
+  .feed > .card .eyebrow::after {
+    font-size: 7px;
+    letter-spacing: .7px;
+  }
+}
