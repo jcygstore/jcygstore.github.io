@@ -1055,3 +1055,25 @@ html {-webkit-text-size-adjust:100%;}
     transform: none !important;
   }
 }
+
+
+/* JCYG STORE · Navidad simplificada: conservar solo la nieve cayendo. */
+.feed > .card .top > .logo::before,
+.feed > .card .top > .logo::after {
+  content: none !important;
+  display: none !important;
+  background: none !important;
+}
+.feed > .card .top > .admin-entry::before,
+.feed > .card .top > .admin-entry::after {
+  content: none !important;
+  display: none !important;
+  background: none !important;
+}
+/* Recupera el aspecto sencillo del botón Catálogo 2026. */
+.feed > .card .top > .admin-entry {
+  color: #5366b9 !important;
+  border: 1px solid #cfd7ff !important;
+  background: #ffffffcc !important;
+  box-shadow: 0 7px 20px #7185a318 !important;
+}
