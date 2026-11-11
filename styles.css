@@ -819,3 +819,73 @@ html {-webkit-text-size-adjust:100%;}
     letter-spacing: .7px;
   }
 }
+
+
+/* JCYG STORE · Navidad más festiva: gorrito, botitas y nieve ligera. */
+/* El gorrito se superpone al logo sin alterar ni reemplazar el archivo original. */
+.feed > .card .top > .logo {
+  position: relative;
+  overflow: visible;
+}
+.feed > .card .top > .logo::after {
+  content: "";
+  position: absolute;
+  left: 6.5%;
+  top: 36%;
+  width: 17%;
+  max-width: 36px;
+  min-width: 25px;
+  aspect-ratio: 80 / 58;
+  height: auto;
+  background: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI4MCIgaGVpZ2h0PSI1OCIgdmlld0JveD0iMCAwIDgwIDU4Ij4KPGRlZnM+PGxpbmVhckdyYWRpZW50IGlkPSJyIiB4MT0iMCIgeTE9IjAiIHgyPSIxIiB5Mj0iMSI+PHN0b3Agc3RvcC1jb2xvcj0iI2ZmNjY3MiIvPjxzdG9wIG9mZnNldD0iLjU1IiBzdG9wLWNvbG9yPSIjZDkyZjQzIi8+PHN0b3Agb2Zmc2V0PSIxIiBzdG9wLWNvbG9yPSIjYTkxZjM1Ii8+PC9saW5lYXJHcmFkaWVudD48bGluZWFyR3JhZGllbnQgaWQ9InciIHgxPSIwIiB5MT0iMCIgeDI9IjAiIHkyPSIxIj48c3RvcCBzdG9wLWNvbG9yPSIjZmZmIi8+PHN0b3Agb2Zmc2V0PSIxIiBzdG9wLWNvbG9yPSIjZThlZGYzIi8+PC9saW5lYXJHcmFkaWVudD48L2RlZnM+CjxwYXRoIGQ9Ik04IDM5QzE2IDE5IDMzIDYgNTggN2MtMTAgMTAtMTIgMjAtNSAzMS0xNC01LTMwLTMtNDUgNloiIGZpbGw9InVybCgjcikiIHN0cm9rZT0iI2E5MjczYSIgc3Ryb2tlLXdpZHRoPSIxLjUiIHN0cm9rZS1saW5lam9pbj0icm91bmQiLz4KPHBhdGggZD0iTTggMzdjMTMtNyAzMS05IDQ5LTJsNCA5Yy0xOC02LTM3LTQtNTMgNFoiIGZpbGw9InVybCgjdykiIHN0cm9rZT0iI2Q4ZGZlOCIgc3Ryb2tlLXdpZHRoPSIxLjIiIHN0cm9rZS1saW5lam9pbj0icm91bmQiLz4KPGNpcmNsZSBjeD0iNjEiIGN5PSI4IiByPSI3IiBmaWxsPSJ1cmwoI3cpIiBzdHJva2U9IiNkOGRmZTgiIHN0cm9rZS13aWR0aD0iMS4yIi8+PHBhdGggZD0iTTIwIDMwYzgtMTAgMTgtMTYgMjktMTgiIGZpbGw9Im5vbmUiIHN0cm9rZT0iI2ZmOWNhNCIgc3Ryb2tlLXdpZHRoPSIyLjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgb3BhY2l0eT0iLjgiLz4KPC9zdmc+") center / contain no-repeat;
+  transform: rotate(-13deg);
+  transform-origin: 55% 85%;
+  z-index: 3;
+  pointer-events: none;
+}
+
+/* Guirnalda superior: botitas navideñas rojas y verdes colgando de un hilo. */
+.feed > .card .top::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 42px;
+  pointer-events: none;
+  z-index: 2;
+  opacity: .96;
+  -webkit-mask-image: linear-gradient(to right, #000 0 68%, transparent 86%);
+  mask-image: linear-gradient(to right, #000 0 68%, transparent 86%);
+  background-image: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMjgiIGhlaWdodD0iNDIiIHZpZXdCb3g9IjAgMCAxMjggNDIiPgo8cGF0aCBkPSJNMCAzIFE2NCAxMiAxMjggMyIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjNzg5NjdmIiBzdHJva2Utd2lkdGg9IjEuNSIgb3BhY2l0eT0iLjgiLz4KPGcgc3Ryb2tlPSIjNzg5NjdmIiBzdHJva2Utd2lkdGg9IjEuNCIgZmlsbD0ibm9uZSI+PHBhdGggZD0iTTMxIDd2NU05NSA3djUiLz48L2c+CjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDAgMCkiPgo8cGF0aCBkPSJNMjMgMTJoMTV2MTFjMCA0IDQgNiA5IDcgNSAxIDYgNSAzIDgtMiAyLTQgMi04IDJIMjZjLTUgMC03LTQtNS04bDQtOFoiIGZpbGw9IiNjODNiNGUiIHN0cm9rZT0iIzlmMjYzOCIgc3Ryb2tlLXdpZHRoPSIxIi8+CjxwYXRoIGQ9Ik0yMiAxMGgxOHY3SDIyeiIgZmlsbD0iI2ZmZjhlZiIgc3Ryb2tlPSIjZTdlMGQ4IiBzdHJva2Utd2lkdGg9Ii44Ii8+CjxwYXRoIGQ9Ik0yMiAzN3ExMiAzIDI5IDAiIGZpbGw9Im5vbmUiIHN0cm9rZT0iIzdmMjMzMiIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiLz4KPHBhdGggZD0iTTI2IDIxdjYiIHN0cm9rZT0iI2Y1OGE5MyIgc3Ryb2tlLXdpZHRoPSIxLjUiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIvPgo8L2c+CjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDY0IDApIj4KPHBhdGggZD0iTTIzIDEyaDE1djExYzAgNCA0IDYgOSA3IDUgMSA2IDUgMyA4LTIgMi00IDItOCAySDI2Yy01IDAtNy00LTUtOGw0LThaIiBmaWxsPSIjM2M4NzZhIiBzdHJva2U9IiMyNzY2NGYiIHN0cm9rZS13aWR0aD0iMSIvPgo8cGF0aCBkPSJNMjIgMTBoMTh2N0gyMnoiIGZpbGw9IiNmZmY4ZWYiIHN0cm9rZT0iI2U3ZTBkOCIgc3Ryb2tlLXdpZHRoPSIuOCIvPgo8cGF0aCBkPSJNMjIgMzdxMTIgMyAyOSAwIiBmaWxsPSJub25lIiBzdHJva2U9IiMyMDUzM2YiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIi8+CjxwYXRoIGQ9Ik0yNiAyMXY2IiBzdHJva2U9IiM4MmMyYTIiIHN0cm9rZS13aWR0aD0iMS41IiBzdHJva2UtbGluZWNhcD0icm91bmQiLz4KPC9nPgo8L3N2Zz4=");
+  background-repeat: repeat-x;
+  background-size: 128px 42px;
+  background-position: center top;
+}
+
+/* Copos y pequeños cristales de nieve estáticos: decorativos y ligeros. */
+.feed > .card {
+  background-image:
+    url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI5NiIgaGVpZ2h0PSIxMTIiIHZpZXdCb3g9IjAgMCA5NiAxMTIiPgo8ZyBmaWxsPSJub25lIiBzdHJva2U9IiNiOWQ5ZWMiIHN0cm9rZS13aWR0aD0iMyIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBvcGFjaXR5PSIuMzIiPgo8cGF0aCBkPSJNMTkgMTJ2MThNMTAgMjFoMThNMTMgMTVsMTIgMTJNMjUgMTVMMTMgMjciLz48cGF0aCBkPSJNNzIgNjJ2MjJNNjEgNzNoMjJNNjQgNjVsMTYgMTZNODAgNjVMNjQgODEiLz4KPC9nPgo8ZyBmaWxsPSJub25lIiBzdHJva2U9IiNmZmYiIHN0cm9rZS13aWR0aD0iMS41IiBzdHJva2UtbGluZWNhcD0icm91bmQiIG9wYWNpdHk9Ii45Ij4KPHBhdGggZD0iTTE5IDEydjE4TTEwIDIxaDE4TTEzIDE1bDEyIDEyTTI1IDE1TDEzIDI3Ii8+PHBhdGggZD0iTTcyIDYydjIyTTYxIDczaDIyTTY0IDY1bDE2IDE2TTgwIDY1TDY0IDgxIi8+CjxwYXRoIGQ9Ik0xOSAxMmwtMyAzbTMtMyAzIDNtLTMgMTUtMy0zbTMgMyAzLTNNMTAgMjFsMy0zbS0zIDMgMyAzbTE1LTMtMy0zbTMgMy0zIDMiLz4KPC9nPgo8ZyBmaWxsPSIjZmZmIiBvcGFjaXR5PSIuOSI+PGNpcmNsZSBjeD0iNDgiIGN5PSIyMCIgcj0iMS43Ii8+PGNpcmNsZSBjeD0iODYiIGN5PSIzMCIgcj0iMS4yIi8+PGNpcmNsZSBjeD0iNDIiIGN5PSI4OSIgcj0iMS41Ii8+PGNpcmNsZSBjeD0iOSIgY3k9Ijc2IiByPSIxLjIiLz48Y2lyY2xlIGN4PSI1NSIgY3k9IjQ5IiByPSIxIi8+PGNpcmNsZSBjeD0iMzEiIGN5PSIxMDUiIHI9IjEuMSIvPjwvZz4KPC9zdmc+"),
+    linear-gradient(135deg, #ffffff 0%, #effaf5 27%, #f3f0ff 54%, #fff1f2 80%, #fffaf0 100%) !important;
+  background-size: 96px 112px, cover !important;
+  background-repeat: repeat, no-repeat !important;
+  background-position: 8px 12px, center !important;
+}
+
+@media (max-width: 620px) {
+  .feed > .card .top::before {
+    height: 37px;
+    background-size: 112px 37px;
+  }
+  .feed > .card .top > .logo::after {
+    left: 6.5%;
+    top: 37%;
+    width: 17%;
+    min-width: 25px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .feed > .card .top::before,
+  .feed > .card .top > .logo::after { animation: none !important; }
+}
