@@ -889,3 +889,169 @@ html {-webkit-text-size-adjust:100%;}
   .feed > .card .top::before,
   .feed > .card .top > .logo::after { animation: none !important; }
 }
+
+
+/* JCYG STORE · Navidad refinada: gorro sobre la J, nieve cayendo y adornos en Catálogo 2026. */
+/* Se retiran las guirnaldas y las botitas de la parte superior. */
+.feed > .card .top::before {
+  content: none !important;
+  display: none !important;
+  background: none !important;
+}
+
+/* El logo conserva su imagen original; el gorro queda apoyado directamente sobre la J. */
+.feed > .card .top > .logo {
+  position: relative;
+  overflow: visible;
+  isolation: isolate;
+}
+.feed > .card .top > .logo > .brand-logo {
+  position: relative;
+  z-index: 1;
+}
+.feed > .card .top > .logo::before {
+  content: "";
+  position: absolute;
+  z-index: 2;
+  left: 3%;
+  bottom: 22%;
+  width: 86%;
+  height: 16%;
+  pointer-events: none;
+  background: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMjAiIGhlaWdodD0iNDIiIHZpZXdCb3g9IjAgMCAyMjAgNDIiPgo8cGF0aCBkPSJNMiAzNEMxNSAzMCAxOSAxNyAzNCAxOGMxMyAxIDE2IDExIDI5IDEwIDE0LTEgMTktMTUgMzQtMTUgMTQgMCAxOCAxMiAzMSAxMyAxNSAxIDE5LTEwIDMzLTEwIDE0IDAgMjAgMTIgMzEgMTUgOCAyIDE2IDEgMjYgMHYxMEgyWiIgZmlsbD0iI2ZmZiIgc3Ryb2tlPSIjY2ZlMWVmIiBzdHJva2Utd2lkdGg9IjEuOCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIvPgo8cGF0aCBkPSJNNyAzM2MyOC01IDQ1IDIgNzAtMyAxOS00IDMxLTUgNDgtMSAyMSA1IDM4LTMgNTYtMSAxMiAxIDIwIDQgMzEgNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjZTZmM2ZiIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIvPgo8Y2lyY2xlIGN4PSI0MyIgY3k9IjIzIiByPSIxLjUiIGZpbGw9IiNmZmYiLz48Y2lyY2xlIGN4PSIxMTIiIGN5PSIxOCIgcj0iMS40IiBmaWxsPSIjZmZmIi8+PGNpcmNsZSBjeD0iMTg0IiBjeT0iMjQiIHI9IjEuNiIgZmlsbD0iI2ZmZiIvPgo8L3N2Zz4=") center bottom / 100% 100% no-repeat;
+  filter: drop-shadow(0 2px 2px rgba(145, 177, 201, .24));
+}
+.feed > .card .top > .logo::after {
+  content: "";
+  position: absolute;
+  z-index: 3;
+  left: 5%;
+  top: 24%;
+  width: 23%;
+  max-width: 44px;
+  min-width: 28px;
+  aspect-ratio: 80 / 58;
+  height: auto;
+  pointer-events: none;
+  background: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI4MCIgaGVpZ2h0PSI1OCIgdmlld0JveD0iMCAwIDgwIDU4Ij4KPGRlZnM+CiA8bGluZWFyR3JhZGllbnQgaWQ9InIiIHgxPSIwIiB5MT0iMCIgeDI9IjEiIHkyPSIxIj48c3RvcCBzdG9wLWNvbG9yPSIjZmY2Yjc4Ii8+PHN0b3Agb2Zmc2V0PSIuNTUiIHN0b3AtY29sb3I9IiNkOTJmNDMiLz48c3RvcCBvZmZzZXQ9IjEiIHN0b3AtY29sb3I9IiNhOTFmMzUiLz48L2xpbmVhckdyYWRpZW50PgogPGxpbmVhckdyYWRpZW50IGlkPSJ3IiB4MT0iMCIgeTE9IjAiIHgyPSIwIiB5Mj0iMSI+PHN0b3Agc3RvcC1jb2xvcj0iI2ZmZiIvPjxzdG9wIG9mZnNldD0iMSIgc3RvcC1jb2xvcj0iI2U4ZWRmMyIvPjwvbGluZWFyR3JhZGllbnQ+CjwvZGVmcz4KPHBhdGggZD0iTTggMzlDMTYgMTkgMzMgNiA1OCA3Yy0xMCAxMC0xMiAyMC01IDMxLTE0LTUtMzAtMy00NSA2WiIgZmlsbD0idXJsKCNyKSIgc3Ryb2tlPSIjYTkyNzNhIiBzdHJva2Utd2lkdGg9IjEuNSIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIvPgo8cGF0aCBkPSJNOCAzN2MxMy03IDMxLTkgNDktMmw0IDljLTE4LTYtMzctNC01MyA0WiIgZmlsbD0idXJsKCN3KSIgc3Ryb2tlPSIjZDhkZmU4IiBzdHJva2Utd2lkdGg9IjEuMiIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIvPgo8Y2lyY2xlIGN4PSI2MSIgY3k9IjgiIHI9IjciIGZpbGw9InVybCgjdykiIHN0cm9rZT0iI2Q4ZGZlOCIgc3Ryb2tlLXdpZHRoPSIxLjIiLz4KPHBhdGggZD0iTTIwIDMwYzgtMTAgMTgtMTYgMjktMTgiIGZpbGw9Im5vbmUiIHN0cm9rZT0iI2ZmOWNhNCIgc3Ryb2tlLXdpZHRoPSIyLjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgb3BhY2l0eT0iLjgiLz4KPC9zdmc+") center / contain no-repeat;
+  filter: drop-shadow(0 2px 2px rgba(111, 42, 53, .18));
+  transform: rotate(-13deg);
+  transform-origin: 55% 85%;
+}
+
+/* Nieve animada en la ficha activa; las capas no capturan gestos ni toques. */
+.feed > .card .shade {
+  overflow: hidden;
+  pointer-events: none;
+}
+.feed > .card .shade::before,
+.feed > .card .shade::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: -100%;
+  width: 100%;
+  height: 300%;
+  pointer-events: none;
+  background-repeat: repeat;
+  transform: translate3d(0, -11.111%, 0);
+}
+.feed > .card .shade::before {
+  opacity: .72;
+  background-image:
+    radial-gradient(circle at 22px 28px, rgba(255,255,255,.98) 0 1.6px, transparent 2px),
+    radial-gradient(circle at 74px 92px, rgba(255,255,255,.9) 0 1.2px, transparent 1.7px),
+    url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxODAiIGhlaWdodD0iMjIwIiB2aWV3Qm94PSIwIDAgMTgwIDIyMCI+CjxnIGZpbGw9Im5vbmUiIHN0cm9rZT0iI2ZmZiIgc3Ryb2tlLXdpZHRoPSIxLjYiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgb3BhY2l0eT0iLjkyIj4KPHBhdGggZD0iTTM0IDI1djI0TTIyIDM3aDI0TTI2IDI5bDE2IDE2TTQyIDI5IDI2IDQ1TTM0IDI1bC0zIDRtMy00IDMgNG0tMTUgOCA0IDBtLTQgMCAyIDRtMjAtNC00IDBtNCAwLTIgNE0yNiA0NWw0LTFtLTQgMSAxLTRtMTUgNC00LTFtNCAxLTEtNCIvPgo8cGF0aCBkPSJNMTM5IDEyNnYyOG0tMTQtMTRoMjhtLTI0LTEwIDIwIDIwbTAtMjAtMjAgMjBNMTM5IDEyNmwtMyA0bTMtNCAzIDRtLTE3IDEwIDQgMG0tNCAwIDIgNG0yNC00LTQgMG00IDAtMiA0bS0yNCAxMCA0LTFtLTQgMSAxLTRtMjAgNC00LTFtNCAxLTEtNCIvPgo8L2c+CjxnIGZpbGw9IiNmZmYiIG9wYWNpdHk9Ii45NSI+PGNpcmNsZSBjeD0iODgiIGN5PSI3MCIgcj0iMS43Ii8+PGNpcmNsZSBjeD0iMTgiIGN5PSIxNzciIHI9IjEuMyIvPjxjaXJjbGUgY3g9IjE1NyIgY3k9IjQyIiByPSIxLjQiLz48Y2lyY2xlIGN4PSIxMDIiIGN5PSIxOTMiIHI9IjEuNSIvPjwvZz4KPC9zdmc+");
+  background-size: 150px 180px, 210px 230px, 260px 300px;
+  animation: jcygSnowFall 17s linear infinite;
+}
+.feed > .card .shade::after {
+  opacity: .48;
+  background-image:
+    radial-gradient(circle at 36px 42px, rgba(255,255,255,.95) 0 2px, transparent 2.5px),
+    radial-gradient(circle at 118px 154px, rgba(255,255,255,.88) 0 1.4px, transparent 1.9px);
+  background-size: 230px 250px, 190px 220px;
+  animation: jcygSnowFall 25s linear -12s infinite;
+}
+.feed > .card.active .shade::before,
+.feed > .card.active .shade::after {
+  will-change: transform;
+}
+@keyframes jcygSnowFall {
+  from { transform: translate3d(0, -11.111%, 0); }
+  to   { transform: translate3d(14px, 0, 0); }
+}
+
+/* Detalles navideños delicados alrededor del borde del botón Catálogo 2026. */
+.feed > .card .top > .admin-entry {
+  position: relative;
+  overflow: visible;
+  border: 1.5px solid #e6d8ad !important;
+  box-shadow:
+    inset 0 0 0 2px rgba(255,255,255,.82),
+    0 0 0 2px rgba(231, 218, 184, .42),
+    0 7px 18px rgba(145,111,54,.13) !important;
+}
+.feed > .card .top > .admin-entry::before {
+  content: "";
+  position: absolute;
+  z-index: 2;
+  width: 27px;
+  height: 24px;
+  right: -5px;
+  top: -9px;
+  pointer-events: none;
+  background: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0OCIgaGVpZ2h0PSI0MiIgdmlld0JveD0iMCAwIDQ4IDQyIj4KPHBhdGggZD0iTTI0IDMwQzEyIDM0IDQgMjggNSAxN2M4LTEgMTQgMiAxOSAxM1oiIGZpbGw9IiM0MzhiNjEiIHN0cm9rZT0iIzI4NmI0OCIgc3Ryb2tlLXdpZHRoPSIxLjUiLz4KPHBhdGggZD0iTTI0IDMwQzIxIDE3IDI3IDcgNDAgNmMyIDEwLTMgMTktMTYgMjRaIiBmaWxsPSIjNTc5YzcwIiBzdHJva2U9IiMyODZiNDgiIHN0cm9rZS13aWR0aD0iMS41Ii8+CjxwYXRoIGQ9Ik0xMyAxOGw2IDNtNy01LTEgOG02LTExLTIgOCIgc3Ryb2tlPSIjYjdkOWI5IiBzdHJva2Utd2lkdGg9IjEuNCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIi8+CjxjaXJjbGUgY3g9IjMxIiBjeT0iMjgiIHI9IjUiIGZpbGw9IiNkODNiNTAiIHN0cm9rZT0iI2E4MjUzYSIgc3Ryb2tlLXdpZHRoPSIxLjIiLz48Y2lyY2xlIGN4PSI0MCIgY3k9IjI0IiByPSI0LjUiIGZpbGw9IiNlZDUzNjIiIHN0cm9rZT0iI2E4MjUzYSIgc3Ryb2tlLXdpZHRoPSIxLjIiLz48Y2lyY2xlIGN4PSIzNyIgY3k9IjM0IiByPSI0LjIiIGZpbGw9IiNjNzJmNDciIHN0cm9rZT0iI2E4MjUzYSIgc3Ryb2tlLXdpZHRoPSIxLjIiLz4KPGNpcmNsZSBjeD0iMjkiIGN5PSIyNiIgcj0iMS40IiBmaWxsPSIjZmZkOWQ4Ii8+PGNpcmNsZSBjeD0iMzgiIGN5PSIyMi41IiByPSIxLjIiIGZpbGw9IiNmZmQ5ZDgiLz4KPC9zdmc+") center / contain no-repeat;
+  transform: rotate(9deg);
+}
+.feed > .card .top > .admin-entry::after {
+  content: "";
+  position: absolute;
+  z-index: 2;
+  width: 15px;
+  height: 20px;
+  left: -7px;
+  top: -8px;
+  pointer-events: none;
+  background: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIzMiIgdmlld0JveD0iMCAwIDI0IDMyIj4KPHBhdGggZD0iTTEyIDF2NiIgc3Ryb2tlPSIjYTk4NzQ1IiBzdHJva2Utd2lkdGg9IjEuNiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIi8+CjxwYXRoIGQ9Ik05IDdoNnY0SDl6IiBmaWxsPSIjZDliNjZiIiBzdHJva2U9IiNhOTg3NDUiIHN0cm9rZS13aWR0aD0iMSIvPgo8Y2lyY2xlIGN4PSIxMiIgY3k9IjE5IiByPSI4LjUiIGZpbGw9IiNkODQ0NTUiIHN0cm9rZT0iI2E3MjgzYiIgc3Ryb2tlLXdpZHRoPSIxLjIiLz4KPGVsbGlwc2UgY3g9IjkiIGN5PSIxNS41IiByeD0iMi4zIiByeT0iMy44IiBmaWxsPSIjZmZmIiBvcGFjaXR5PSIuMzUiLz4KPHBhdGggZD0iTTcgMjVjMyAyIDcgMiAxMCAwIiBmaWxsPSJub25lIiBzdHJva2U9IiNmNzhiOTEiIHN0cm9rZS13aWR0aD0iMSIgb3BhY2l0eT0iLjgiLz4KPC9zdmc+") center / contain no-repeat;
+  transform: rotate(-9deg);
+}
+
+/* Fondo suave: se elimina el patrón estático anterior y se conserva el degradado. */
+.feed > .card {
+  background-image: linear-gradient(135deg, #ffffff 0%, #effaf5 27%, #f3f0ff 54%, #fff1f2 80%, #fffaf0 100%) !important;
+  background-size: cover !important;
+  background-repeat: no-repeat !important;
+}
+
+@media (max-width: 620px) {
+  .feed > .card .top > .logo::after {
+    left: 5%;
+    top: 24%;
+    width: 23%;
+    min-width: 28px;
+  }
+  .feed > .card .top > .logo::before {
+    bottom: 22%;
+    height: 16%;
+  }
+  .feed > .card .top > .admin-entry::before {
+    width: 24px;
+    height: 22px;
+    right: -5px;
+    top: -8px;
+  }
+  .feed > .card .top > .admin-entry::after {
+    width: 13px;
+    height: 18px;
+    left: -6px;
+    top: -7px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .feed > .card .shade::before,
+  .feed > .card .shade::after {
+    animation: none !important;
+    transform: none !important;
+  }
+}
