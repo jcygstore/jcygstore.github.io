@@ -204,8 +204,8 @@ function renderFeed() {
         <button class="act" type="button" data-action="details" aria-label="Ver características"><span class="ico">${detailsSvg}</span><small>Detalles</small></button>
         <button class="act consult-side" type="button" data-action="consult" aria-label="Consultar por WhatsApp"><span class="ico">${waSvg}</span><small>Consultar</small></button>
         <button class="act cart-side" type="button" data-action="cart-add" aria-label="Añadir al carrito" ${unavailable(p)?'disabled title="Producto agotado"':''}><span class="ico">${cartPlusSvg}</span><small>Añadir</small></button>
-      </div>${index === products.length - 1 ? '<footer class="store-footer">©2026 JCYG STORE. Todos los derechos reservados.</footer>' : ''}</article>`;
-  }).join('');
+      </div></article>`;
+  }).join('') + '<footer class="store-footer">©2026 JCYG STORE. Todos los derechos reservados.</footer>';
   const cards = [...feed.querySelectorAll('.card')];
   // La cuadrícula de escritorio muestra varios productos por fila; conservar
   // el desplazamiento real evita saltar de producto al actualizar Firestore.
