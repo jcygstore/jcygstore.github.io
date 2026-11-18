@@ -1264,3 +1264,90 @@ html, body {
 @media (prefers-reduced-motion: reduce) {
   .product-stage .gallery-arrow { transition: none !important; }
 }
+
+
+/* JCYG STORE · Corrección de medios en escritorio (Chrome / Safari).
+   Reserva una franja real para el texto del producto y mantiene el video
+   completo dentro de la galería, sin desplazarlo sobre la descripción. */
+@media (min-width: 800px) {
+  .feed > .card > .product-stage {
+    top: clamp(92px, 11vh, 120px) !important;
+    bottom: clamp(320px, 38vh, 370px) !important;
+  }
+
+  .feed > .card > .product-stage .product-gallery,
+  .feed > .card > .product-stage .product-slide {
+    height: 100% !important;
+    min-height: 0 !important;
+  }
+
+  .feed > .card > .product-stage .product-slide video.jcyg-product-video {
+    position: relative !important;
+    top: 0 !important;
+    transform: none !important;
+    width: min(82%, 660px) !important;
+    height: min(88%, 38vh, 390px) !important;
+    max-width: 660px !important;
+    max-height: 390px !important;
+    object-fit: contain !important;
+    object-position: center !important;
+    margin: 0 auto !important;
+    flex-shrink: 1 !important;
+  }
+
+  .feed > .card > .product-stage .product-slide img.product-photo-png {
+    width: min(92%, 820px) !important;
+    height: min(88%, 45vh, 440px) !important;
+    max-width: 820px !important;
+    max-height: 440px !important;
+    object-fit: contain !important;
+    object-position: center !important;
+  }
+
+  .feed > .card > .product-stage .product-slide img.product-photo-jpg {
+    width: min(97%, 840px) !important;
+    height: min(90%, 45vh, 430px) !important;
+    max-width: 840px !important;
+    max-height: 430px !important;
+    object-fit: contain !important;
+    object-position: center !important;
+  }
+}
+
+/* Acceso directo al TikTok oficial de JCYG STORE, debajo de Añadir. */
+.feed > .card .actions .tiktok-side {
+  text-decoration: none !important;
+  -webkit-tap-highlight-color: transparent;
+}
+.feed > .card .actions .tiktok-side .tiktok-ico {
+  background: #111111 !important;
+  color: #ffffff !important;
+  border: 1px solid rgba(255,255,255,.18) !important;
+  box-shadow: 0 12px 26px rgba(17,17,17,.22) !important;
+}
+.feed > .card .actions .tiktok-side .tiktok-ico svg {
+  display: block;
+  width: 29px;
+  height: 29px;
+  overflow: visible;
+}
+.feed > .card .actions .tiktok-side .tiktok-ico path {
+  fill: none;
+  stroke-width: 2.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.feed > .card .actions .tiktok-side .tiktok-ico .tiktok-cyan {
+  stroke: #25f4ee;
+  transform: translate(-1px, 1px);
+}
+.feed > .card .actions .tiktok-side .tiktok-ico .tiktok-pink {
+  stroke: #fe2c55;
+  transform: translate(1px, -1px);
+}
+.feed > .card .actions .tiktok-side .tiktok-ico .tiktok-white {
+  stroke: #ffffff;
+}
+.feed > .card .actions .tiktok-side small {
+  color: #52627a;
+}

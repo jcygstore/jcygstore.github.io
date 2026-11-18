@@ -79,8 +79,33 @@
     updateArrowState(stage, gallery);
   }
 
+  function enhanceTikTok(card) {
+    const actions = card.querySelector('.actions');
+    const addButton = actions?.querySelector('.cart-side');
+    if (!actions || !addButton || actions.querySelector('.tiktok-side')) return;
+
+    const link = document.createElement('a');
+    link.className = 'act tiktok-side';
+    link.href = 'https://www.tiktok.com/@jcyg.store?is_from_webapp=1&sender_device=pc';
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
+    link.title = 'Visitar JCYG STORE en TikTok';
+    link.setAttribute('aria-label', 'Visitar JCYG STORE en TikTok');
+    link.innerHTML = `
+      <span class="ico tiktok-ico" aria-hidden="true">
+        <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
+          <path class="tiktok-cyan" d="M14 3.2v10.9a3.5 3.5 0 1 1-3.2-3.5M14 3.2c.3 2.6 2 4.4 4.6 4.8"/>
+          <path class="tiktok-pink" d="M14 3.2v10.9a3.5 3.5 0 1 1-3.2-3.5M14 3.2c.3 2.6 2 4.4 4.6 4.8"/>
+          <path class="tiktok-white" d="M14 3.2v10.9a3.5 3.5 0 1 1-3.2-3.5M14 3.2c.3 2.6 2 4.4 4.6 4.8"/>
+        </svg>
+      </span>
+      <small>TikTok</small>`;
+    addButton.insertAdjacentElement('afterend', link);
+  }
+
   function enhanceAll() {
     feed.querySelectorAll('.product-stage').forEach(enhanceStage);
+    feed.querySelectorAll('.card').forEach(enhanceTikTok);
   }
 
   const observer = new MutationObserver(() => enhanceAll());
