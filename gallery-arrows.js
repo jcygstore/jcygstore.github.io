@@ -92,7 +92,11 @@
 
     const link = document.createElement('a');
     link.className = 'act tiktok-side';
-    link.href = 'https://www.tiktok.com/@jcyg.store?is_from_webapp=1&sender_device=pc';
+    const userAgent = navigator.userAgent || '';
+    const isMobileDevice = /Android|iPhone|iPad|iPod|Mobile/i.test(userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    link.href = isMobileDevice
+      ? 'https://vm.tiktok.com/ZS9fofpRxe7Qd-3ICcB/'
+      : 'https://www.tiktok.com/@jcyg.store?is_from_webapp=1&sender_device=pc';
     link.target = '_blank';
     link.rel = 'noopener noreferrer';
     link.title = 'Visitar JCYG STORE en TikTok';
