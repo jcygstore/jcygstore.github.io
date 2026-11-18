@@ -4,6 +4,46 @@ import { cloudinaryWorkerUrl } from './cloudinary-config.js';
 // JCYG STORE — catálogo público y administración protegida por Firebase.
 const $ = (id) => document.getElementById(id);
 const feed = $('feed'), modal = $('modal'), sheet = $('sheet'), toast = $('toast');
+// Altura estable de la ficha: evita los recálculos de 100dvh cuando Chrome o
+// Safari ocultan y muestran sus barras durante el gesto.
+let jcygLastScreenWidth = window.innerWidth;
+let jcygScreenTimer = null;
+function jcygSetStableScreenHeight(force=false){
+  const width=Math.round(window.innerWidth || document.documentElement.clientWidth || 0);
+  if(!width)return;
+  if(!force && Math.abs(width-jcygLastScreenWidth)<16)return;
+  jcygLastScreenWidth=width;
+  const height=Math.round(window.innerHeight || document.documentElement.clientHeight || 0);
+  if(height>300)document.documentElement.style.setProperty('--jcyg-stable-screen-height',height+'px');
+}
+jcygSetStableScreenHeight(true);
+function jcygHandleScreenResize(){
+  // No alterar la altura durante el deslizamiento; solo cuando gira el móvil
+  // o cambia realmente el ancho de la pantalla.
+  if(Math.abs(window.innerWidth-jcygLastScreenWidth)<16)return;
+  if(jcygScreenTimer)clearTimeout(jcygScreenTimer);
+  jcygScreenTimer=setTimeout(()=>{
+    const oldHeight=feed.clientHeight || window.innerHeight;
+    const oldIndex=Math.max(0,Math.round(feed.scrollTop/Math.max(1,oldHeight)));
+    const oldScrollTop=feed.scrollTop;
+    const desktopGrid=window.matchMedia('(min-width: 900px)').matches;
+    jcygSetStableScreenHeight(true);
+    feed.scrollTop=desktopGrid ? oldScrollTop : oldIndex*(feed.clientHeight||oldHeight);
+  },180);
+}
+window.addEventListener('resize',jcygHandleScreenResize,{passive:true});
+window.addEventListener('orientationchange',()=>{
+  if(jcygScreenTimer)clearTimeout(jcygScreenTimer);
+  jcygScreenTimer=setTimeout(()=>{
+    const oldHeight=feed.clientHeight || window.innerHeight;
+    const oldIndex=Math.max(0,Math.round(feed.scrollTop/Math.max(1,oldHeight)));
+    const oldScrollTop=feed.scrollTop;
+    const desktopGrid=window.matchMedia('(min-width: 900px)').matches;
+    jcygSetStableScreenHeight(true);
+    feed.scrollTop=desktopGrid ? oldScrollTop : oldIndex*(feed.clientHeight||oldHeight);
+  },250);
+},{passive:true});
+
 const adminOverlay = $('admin-overlay'), adminContent = $('admin-content');
 const logoPath = 'assets/jcyg-store-logo-3d.png?v=20261020';
 const blankPhoto = 'assets/imagen-no-disponible.svg';
@@ -68,7 +108,7 @@ const pausedVideosExcept = except => {
 };
 function mediaSlideHTML(item, name, i, total, eager=false, priority=false){
   if(isVideo(item))return `<video class="jcyg-product-video" controls playsinline preload="none" aria-label="${esc(name)} · video ${i+1} de ${total}" src="${esc(safeVideo(item.url))}"></video>`;
-  return `<img class="${item.sourceFormat==='jpg'?'product-photo-jpg':'product-photo-png'}" src="${esc(displayPhoto(item.url,item.sourceFormat))}" data-image-fallback="allowed" alt="${esc(name)} · foto ${i+1} de ${total}" loading="${eager?'eager':'lazy'}" decoding="${eager?'sync':'async'}" ${priority?'fetchpriority="high"':''}>`;
+  return `<img class="${item.sourceFormat==='jpg'?'product-photo-jpg':'product-photo-png'}" src="${esc(displayPhoto(item.url,item.sourceFormat))}" data-image-fallback="allowed" alt="${esc(name)} · foto ${i+1} de ${total}" loading="${eager?'eager':'lazy'}" decoding="async" ${priority?'fetchpriority="high"':''}>`;
 }
 function detailMediaHTML(item,name){
   if(isVideo(item))return `<video id="detail-photo" class="gallery-main detail-video jcyg-product-video" controls playsinline preload="none" src="${esc(safeVideo(item.url))}" aria-label="Video de ${esc(name)}"></video>`;
@@ -131,6 +171,12 @@ function header() {
   return `<div class="top"><div class="logo"><img class="brand-logo" src="${logoPath}" alt="JCYG STORE"></div><button type="button" class="tag admin-entry" data-action="admin" title="Ingresar a administración">Catálogo 2026</button></div>`;
 }
 function renderFeed() {
+  // Conservar producto e imagen actual cuando Firestore actualiza el catálogo.
+  // Evita el salto a la primera ficha si se edita precio, color o stock.
+  const previousScrollTop=feed.scrollTop;
+  const previousPhotos=new Map([...feed.querySelectorAll(':scope > .card')].map(card=>[
+    card.dataset.id, Number(card.querySelector('.product-gallery')?.dataset.currentPhoto||0)
+  ]));
   let floating=document.getElementById('cart-floating');if(!floating){floating=document.createElement('button');floating.id='cart-floating';floating.type='button';floating.innerHTML=`${cartSvg}<span class="cart-count">0</span>`;floating.setAttribute('aria-label','Abrir carrito');floating.addEventListener('click',cartPanel);document.body.appendChild(floating);}updateCartBadges();
   if(!products.length) {
     feed.innerHTML = `<section class="no-products"><div class="empty-center"><img src="${logoPath}" alt="JCYG STORE"><h2>Pronto tendremos novedades</h2><p>Estamos preparando nuestro catálogo de productos.</p><button class="tag admin-entry" data-action="admin" type="button">Catálogo 2026 · Administrador</button></div><footer class="store-footer">©2026 JCYG STORE. Todos los derechos reservados.</footer></section>`;
@@ -161,25 +207,37 @@ function renderFeed() {
       </div>${index === products.length - 1 ? '<footer class="store-footer">©2026 JCYG STORE. Todos los derechos reservados.</footer>' : ''}</article>`;
   }).join('');
   const cards = [...feed.querySelectorAll('.card')];
+  // La cuadrícula de escritorio muestra varios productos por fila; conservar
+  // el desplazamiento real evita saltar de producto al actualizar Firestore.
+  feed.scrollTop=previousScrollTop;
+  // Restaurar fotos vistas sin quitar la asociación con su color.
+  for(const card of cards){
+    if(!previousPhotos.has(card.dataset.id))continue;
+    const gallery=card.querySelector('.product-gallery');
+    if(!gallery)continue;
+    const total=gallery.querySelectorAll('.product-slide').length;
+    const photo=Math.max(0,Math.min(total-1,previousPhotos.get(card.dataset.id)));
+    gallery.dataset.startPhoto=String(photo);
+    gallery.dataset.currentPhoto=String(photo);
+    card.querySelectorAll('.photo-dot').forEach((dot,i)=>{
+      dot.classList.toggle('selected',i===photo);
+      dot.setAttribute('aria-pressed',String(i===photo));
+    });
+  }
   if ('IntersectionObserver' in window) {
     const watcher = new IntersectionObserver((entries) => entries.forEach(e => {e.target.classList.toggle('active',e.isIntersecting && e.intersectionRatio > .4); if(!e.isIntersecting || e.intersectionRatio<.3)e.target.querySelectorAll('video').forEach(v=>v.pause());}),{root:feed,threshold:[.3,.4,.7]});
     cards.forEach(c => watcher.observe(c));
   }
   if(cards[0]) cards[0].classList.add('active');
-  // Restaurar la foto correspondiente al color escogido cuando se redibuja el catálogo.
-  for(const card of cards){
-    const gallery=card.querySelector('.product-gallery');
-    const initial=Number(gallery?.dataset.startPhoto||0);
-    if(initial>0) gallery.scrollLeft=initial*gallery.clientWidth;
-  }
-  // En Safari el primer cálculo del ancho puede ocurrir antes del montaje completo.
+  // Restauración única después del primer cálculo de diseño: evita leer
+  // el ancho y escribir scrollLeft repetidamente en pleno montaje de Safari.
   requestAnimationFrame(()=>{
-    cards.forEach(card=>{
+    for(const card of cards){
       const gallery=card.querySelector('.product-gallery');
-      if(!gallery||!gallery.clientWidth)return;
+      if(!gallery)return;
       const i=Number(gallery.dataset.currentPhoto||gallery.dataset.startPhoto||0);
-      if(i>0)gallery.scrollLeft=i*gallery.clientWidth;
-    });
+      if(i>0 && gallery.clientWidth)gallery.scrollLeft=i*gallery.clientWidth;
+    }
   });
   // Preparar fotos de la ficha actual y la siguiente antes de que Safari las necesite.
   if('IntersectionObserver' in window){
@@ -228,11 +286,17 @@ function showCardPhoto(card,index,animated=false){
   updateGalleryDots(card,safeIndex);
 }
 // El carrusel usa desplazamiento nativo; el scroll vertical sigue perteneciendo al catálogo.
+const galleryScrollFrames=new WeakSet();
 feed.addEventListener('scroll',event=>{
   const gallery=event.target;
-  if(!gallery.classList?.contains('product-gallery')||!gallery.clientWidth)return;
-  updateGalleryDots(gallery.closest('.card'),Math.round(gallery.scrollLeft/gallery.clientWidth));
-},true);
+  if(!gallery?.classList?.contains('product-gallery')||galleryScrollFrames.has(gallery))return;
+  galleryScrollFrames.add(gallery);
+  requestAnimationFrame(()=>{
+    galleryScrollFrames.delete(gallery);
+    const width=gallery.clientWidth;
+    if(width)updateGalleryDots(gallery.closest('.card'),Math.round(gallery.scrollLeft/width));
+  });
+},{capture:true,passive:true});
 function chooseColor(id, color) {
   const p = getProduct(id); if(!p || !p.colors.some(c => c.name===color && !colorSoldOut(p,c))) return;
   chosenColors.set(id,color);
@@ -1076,4 +1140,7 @@ async function initFirebase(){
     adminContent.innerHTML='<div class="login-wrap"><h2>Firebase no disponible</h2><p>Revisa la configuración, las reglas y tu conexión a internet.</p></div>';
   }
 }
+document.addEventListener('visibilitychange',()=>{
+  if(document.hidden)pausedVideosExcept(null);
+});
 renderFeed();initFirebase();

@@ -6,6 +6,12 @@
   const feed = document.getElementById('feed');
   if (!feed || !('MutationObserver' in window)) return;
 
+  const desktopAdmin = document.getElementById('desktop-admin-entry');
+  desktopAdmin?.addEventListener('click', () => {
+    const originalAdmin = feed.querySelector('.admin-entry');
+    originalAdmin?.click();
+  });
+
   const reducedMotion = () => window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   const svg = (direction) => direction === 'prev'
     ? '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m14.5 5-7 7 7 7"/></svg>'
