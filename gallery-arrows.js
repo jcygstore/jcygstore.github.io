@@ -97,12 +97,13 @@
     link.rel = 'noopener noreferrer';
     link.title = 'Visitar JCYG STORE en TikTok';
     link.setAttribute('aria-label', 'Visitar JCYG STORE en TikTok');
+    const tiktokMark = 'M12.525.02c1.31-.02 2.62-.01 3.92-.02.08 1.53.63 3.05 1.74 4.14 1.1 1.08 2.62 1.59 4.1 1.73v4.01c-1.39-.05-2.78-.35-4.03-.95-.55-.26-1.06-.6-1.56-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.78-1.35 3.93-1.3 1.91-3.56 3.15-5.87 3.19-1.42.08-2.84-.31-4.04-1.07-1.99-1.27-3.34-3.55-3.37-5.92-.02-1.47.39-2.93 1.16-4.18 1.25-2.04 3.51-3.41 5.91-3.48.28-.01.56-.02.84-.01v4.11c-.94-.31-2-.22-2.86.29-.63.38-1.12.98-1.32 1.69-.17.58-.13 1.22.1 1.79.36.87 1.21 1.54 2.15 1.69.63.12 1.29.01 1.85-.31.66-.38 1.14-1.07 1.28-1.82.07-.42.05-.85.05-1.27V.02z';
     link.innerHTML = `
       <span class="ico tiktok-ico" aria-hidden="true">
         <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
-          <path class="tiktok-cyan" d="M14 3.2v10.9a3.5 3.5 0 1 1-3.2-3.5M14 3.2c.3 2.6 2 4.4 4.6 4.8"/>
-          <path class="tiktok-pink" d="M14 3.2v10.9a3.5 3.5 0 1 1-3.2-3.5M14 3.2c.3 2.6 2 4.4 4.6 4.8"/>
-          <path class="tiktok-white" d="M14 3.2v10.9a3.5 3.5 0 1 1-3.2-3.5M14 3.2c.3 2.6 2 4.4 4.6 4.8"/>
+          <path class="tiktok-cyan" d="${tiktokMark}" transform="translate(-.62 .42)"/>
+          <path class="tiktok-pink" d="${tiktokMark}" transform="translate(.62 -.42)"/>
+          <path class="tiktok-white" d="${tiktokMark}"/>
         </svg>
       </span>
       <small>TikTok</small>`;
