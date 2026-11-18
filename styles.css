@@ -1077,3 +1077,190 @@ html {-webkit-text-size-adjust:100%;}
   background: #ffffffcc !important;
   box-shadow: 0 7px 20px #7185a318 !important;
 }
+
+
+/* JCYG STORE · Ajuste responsive para móvil, tablet y escritorio.
+   Mantiene el contenido dentro de un ancho centrado y respeta las zonas seguras. */
+html, body {
+  width: 100%;
+  min-width: 0;
+  min-height: 100%;
+  overflow: hidden;
+}
+.feed {
+  width: 100%;
+  height: 100vh;
+  height: 100dvh;
+  margin: 0 auto;
+  overflow-x: hidden;
+  overscroll-behavior-x: none;
+}
+.feed > .card {
+  width: 100%;
+  height: var(--jcyg-stable-screen-height, 100dvh);
+  min-height: 0;
+  overflow: hidden;
+}
+/* Encabezado centrado como bloque; logo y Catálogo conservan sus extremos. */
+.feed > .card > .top {
+  left: 0;
+  right: 0;
+  width: 100%;
+  max-width: 1160px;
+  margin-left: auto;
+  margin-right: auto;
+  padding: max(14px, env(safe-area-inset-top, 0px)) clamp(14px, 3vw, 30px) 14px;
+}
+.feed > .card > .top .brand-logo {
+  max-width: min(42vw, 212px);
+  height: auto;
+  object-fit: contain;
+}
+/* El bloque de información queda centrado en la ficha, sin invadir los botones. */
+.feed > .card > .info {
+  left: max(16px, calc((100% - 1040px) / 2));
+  right: max(82px, calc((100% - 1040px) / 2));
+  width: auto;
+  max-width: 1040px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.feed > .card > .actions {
+  right: max(8px, calc((100% - 1160px) / 2));
+}
+/* Área de medios centrada y limitada en monitores grandes. */
+.feed > .card > .product-stage {
+  left: max(8px, calc((100% - 1120px) / 2));
+  right: max(8px, calc((100% - 1120px) / 2));
+  min-width: 0;
+}
+.empty-center,
+.detail-wrap {
+  width: min(100%, 780px);
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* Flechas del carrusel: sustituyen por completo a los puntos indicadores. */
+.product-gallery-dots {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+.product-stage .gallery-arrow {
+  position: absolute;
+  top: 50%;
+  z-index: 6;
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  padding: 0;
+  border: 1px solid rgba(204, 216, 235, .95);
+  border-radius: 50%;
+  color: #33466b;
+  background: rgba(255, 255, 255, .91);
+  box-shadow: 0 5px 18px rgba(52, 73, 110, .16);
+  -webkit-appearance: none;
+  appearance: none;
+  transform: translateY(-50%);
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+.product-stage .gallery-arrow-prev { left: 8px; }
+.product-stage .gallery-arrow-next { right: 8px; }
+.product-stage .gallery-arrow svg {
+  display: block;
+  width: 21px;
+  height: 21px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.product-stage .gallery-arrow:disabled {
+  opacity: .38;
+  cursor: default;
+  box-shadow: 0 2px 8px rgba(52, 73, 110, .08);
+}
+.product-stage .gallery-arrow:focus-visible {
+  outline: 3px solid rgba(105, 91, 220, .45);
+  outline-offset: 3px;
+}
+
+@media (max-width: 799px) {
+  .feed > .card > .top {
+    padding-left: 14px;
+    padding-right: 14px;
+  }
+  .feed > .card > .info {
+    left: 15px;
+    right: 78px;
+    bottom: calc(22px + env(safe-area-inset-bottom, 0px));
+  }
+  .feed > .card > .actions {
+    right: 7px;
+    bottom: calc(62px + env(safe-area-inset-bottom, 0px));
+  }
+  .feed > .card > .product-stage {
+    left: 7px;
+    right: 7px;
+    top: clamp(98px, 12svh, 145px);
+    bottom: clamp(205px, 24svh, 295px);
+  }
+  .product-stage .gallery-arrow {
+    width: 36px;
+    height: 36px;
+  }
+  .product-stage .gallery-arrow svg {
+    width: 19px;
+    height: 19px;
+  }
+  .product-stage .gallery-arrow-prev { left: 5px; }
+  .product-stage .gallery-arrow-next { right: 5px; }
+}
+@media (max-width: 390px) {
+  .feed > .card > .info {
+    left: 13px;
+    right: 74px;
+  }
+  .feed > .card > .actions { right: 5px; }
+  .feed > .card > .top { padding-left: 12px; padding-right: 12px; }
+  .feed > .card > .top .brand-logo { max-width: 40vw; }
+}
+@media (min-width: 800px) {
+  .feed > .card > .top { padding-left: 30px; padding-right: 30px; }
+  .feed > .card > .info {
+    left: max(28px, calc((100% - 1040px) / 2));
+    right: max(112px, calc((100% - 1040px) / 2));
+    bottom: calc(34px + env(safe-area-inset-bottom, 0px));
+  }
+  .feed > .card > .actions {
+    right: max(18px, calc((100% - 1160px) / 2));
+    bottom: 110px;
+  }
+  .feed > .card > .product-stage {
+    top: 100px;
+    bottom: 190px;
+  }
+  .product-stage .gallery-arrow { width: 46px; height: 46px; }
+}
+/* En horizontal, reducir alturas para que medios, texto y controles no se crucen. */
+@media (max-height: 560px) and (orientation: landscape) {
+  .feed > .card > .top { padding-top: 7px; padding-bottom: 7px; }
+  .feed > .card > .top .brand-logo { max-height: 54px; }
+  .feed > .card > .product-stage { top: 62px; bottom: 128px; }
+  .feed > .card > .info { bottom: 8px; }
+  .feed > .card > .name { font-size: clamp(19px, 3.2vw, 27px); }
+  .feed > .card > .desc { margin: 4px 0; font-size: 11px; }
+  .feed > .card > .actions { bottom: 22px; gap: 3px; }
+  .feed > .card > .actions .ico { width: 36px; height: 36px; }
+  .feed > .card > .actions .ico svg { width: 22px; height: 22px; }
+  .feed > .card > .actions .act small { font-size: 8px; margin-top: 2px; }
+  .product-stage .gallery-arrow { width: 34px; height: 34px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .product-stage .gallery-arrow { transition: none !important; }
+}
