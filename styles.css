@@ -1575,3 +1575,35 @@ body::after {
 .feed > .card {
   box-shadow: inset 0 2px 0 rgba(190,157,96,.20) !important;
 }
+
+/* JCYG STORE · Ajuste solicitado: logo y botón Catálogo 2026 +30%.
+   Se conserva la composición actual; solo crecen estos dos controles. */
+@media (min-width: 900px) {
+  .desktop-store-brand img {
+    width: clamp(188px, 20.8vw, 267px) !important;
+    height: 73px !important;
+  }
+  .desktop-store-header > .admin-entry {
+    font-size: 15.6px !important;
+    padding: 14.3px 19.5px !important;
+    letter-spacing: .9px !important;
+  }
+}
+@media (max-width: 899px) {
+  .desktop-store-brand img {
+    width: clamp(140px, 44.2vw, 192px) !important;
+    height: 59px !important;
+  }
+  .desktop-store-header > .admin-entry {
+    font-size: 13px !important;
+    padding: 10.4px 14.3px !important;
+    letter-spacing: .65px !important;
+  }
+}
+@media (max-height: 560px) and (orientation: landscape) and (max-width: 899px) {
+  .desktop-store-brand img { height: 55px !important; }
+  .desktop-store-header > .admin-entry {
+    font-size: 13px !important;
+    padding: 9px 13px !important;
+  }
+}
