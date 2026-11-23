@@ -69,7 +69,10 @@ const SAMPLE_PRODUCTS = [
 ];
 const firebaseReady = Boolean(firebaseConfig.apiKey && !firebaseConfig.apiKey.startsWith('REEMPLAZAR') && firebaseConfig.projectId && !firebaseConfig.projectId.startsWith('REEMPLAZAR') && adminUid && !adminUid.startsWith('REEMPLAZAR'));
 let products = firebaseReady ? [] : structuredClone(SAMPLE_PRODUCTS);
-let adminProducts = [], settings = {whatsapp:'',whatsappUsername:'',whatsappMode:'number'};
+let adminProducts = [], settings = {
+  whatsapp:'',whatsappUsername:'',whatsappMode:'number',
+  whatsapp2:'',whatsappUsername2:'',whatsappMode2:'number'
+};
 let likes = new Set(); try { likes = new Set(JSON.parse(localStorage.getItem('jcyg_likes_v2') || '[]')); }catch{}
 let chosenColors = new Map(), currentId = null, photoIndex = 0;
 let likeCounts = new Map(), cart = []; try { cart = JSON.parse(localStorage.getItem('jcyg_cart_v2') || '[]'); if(!Array.isArray(cart))cart=[]; }catch{cart=[];}
@@ -340,16 +343,24 @@ function closeProduct() {pausedVideosExcept(null);modal.classList.remove('show')
 // El usuario debe estar ACTIVO en WhatsApp; un usuario solamente reservado no abre chats.
 function normalizeWhatsAppUsername(value){return String(value||'').trim().replace(/^@+/, '');}
 function validWhatsAppUsername(value){return /^[a-zA-Z0-9._]{3,40}$/.test(value);}
+function getWhatsAppTargets(){
+  return [1,2].map(n=>{
+    const mode=settings[n===1?'whatsappMode':'whatsappMode2']==='username'?'username':'number';
+    const phone=String(settings[n===1?'whatsapp':'whatsapp2']||'').replace(/\D/g,'');
+    const username=normalizeWhatsAppUsername(settings[n===1?'whatsappUsername':'whatsappUsername2']);
+    const target=mode==='username'
+      ? (validWhatsAppUsername(username)?username:'')
+      : (/^\d{8,15}$/.test(phone)?phone:'');
+    return target;
+  }).filter(Boolean);
+}
 function waLink(message){
-  const phone=String(settings.whatsapp||'').replace(/\D/g,'');
-  const username=normalizeWhatsAppUsername(settings.whatsappUsername);
-  const useUsername=settings.whatsappMode==='username';
-  const target=useUsername && validWhatsAppUsername(username)
-    ? username
-    : (/^\d{8,15}$/.test(phone) ? phone : '');
-  if(!target){notify('Configura el usuario o número de WhatsApp en Administración.');return;}
-  // WhatsApp documenta wa.me/Usuario; comprobar en el dispositivo si el texto se precarga.
-  window.open(`https://wa.me/${encodeURIComponent(target)}?text=${encodeURIComponent(message)}`,'_blank','noopener,noreferrer');
+  const targets=getWhatsAppTargets();
+  if(!targets.length){notify('Configura al menos un usuario o número de WhatsApp en Administración.');return;}
+  const urlFor=target=>`https://wa.me/${encodeURIComponent(target)}?text=${encodeURIComponent(message)}`;
+  // Ambos chats se abren desde la misma acción del usuario; el pedido queda precargado en cada uno.
+  targets.forEach(target=>window.open(urlFor(target),'_blank','noopener,noreferrer'));
+  if(targets.length===2)notify('Se abrieron los dos chats. Envía el pedido en ambos.');
 }
 function productLabel(p){
   const color=selection(p);
@@ -621,36 +632,48 @@ async function saveSaleNote(form){
   }catch(err){console.error('Observación venta:',err);status.textContent='No se pudo guardar la observación.';button.disabled=false;}
 }
 function renderSettings(){
-  const mode=settings.whatsappMode==='username'?'username':'number';
-  const current=mode==='username'
-    ? (settings.whatsappUsername ? '@'+normalizeWhatsAppUsername(settings.whatsappUsername) : '')
-    : String(settings.whatsapp||'');
+  const modes=[
+    settings.whatsappMode==='username'?'username':'number',
+    settings.whatsappMode2==='username'?'username':'number'
+  ];
+  const values=[
+    modes[0]==='username'?(settings.whatsappUsername?'@'+normalizeWhatsAppUsername(settings.whatsappUsername):''):String(settings.whatsapp||''),
+    modes[1]==='username'?(settings.whatsappUsername2?'@'+normalizeWhatsAppUsername(settings.whatsappUsername2):''):String(settings.whatsapp2||'')
+  ];
   adminContent.innerHTML=`<div class="admin-topline"><h2>WhatsApp de la tienda</h2></div>${adminTabs()}
     <div class="admin-panel"><form id="settings-form">
-      <label class="admin-field">Tipo de contacto
-        <select name="whatsappMode">
-          <option value="username" ${mode==='username'?'selected':''}>Por nombre de usuario</option>
-          <option value="number" ${mode==='number'?'selected':''}>Por número de celular</option>
-        </select>
-      </label>
-      <label class="admin-field" style="margin-top:14px"><span id="whatsapp-contact-label">${mode==='username'?'Usuario de WhatsApp':'Número de celular'}</span>
-        <input name="whatsappContact" type="text" inputmode="${mode==='username'?'text':'tel'}" maxlength="50" autocomplete="off" autocapitalize="off" spellcheck="false" value="${esc(current)}" required>
-      </label>
+      ${[1,2].map((n)=>`<section class="wa-contact-setting" style="padding:${n===1?'0 0 18px':'18px 0 0'};${n===2?'border-top:1px solid #e5eaf1;':''}">
+        <h3 style="margin:0 0 12px;font-size:16px;color:#34415b">Destinatario ${n} ${n===1?'(principal)':'(adicional)'}</h3>
+        <label class="admin-field">Tipo de contacto
+          <select name="whatsappMode${n}">
+            <option value="username" ${modes[n-1]==='username'?'selected':''}>Por nombre de usuario</option>
+            <option value="number" ${modes[n-1]==='number'?'selected':''}>Por número de celular</option>
+          </select>
+        </label>
+        <label class="admin-field" style="margin-top:12px"><span id="whatsapp-contact-label-${n}">${modes[n-1]==='username'?'Usuario de WhatsApp':'Número de celular'}</span>
+          <input name="whatsappContact${n}" type="text" inputmode="${modes[n-1]==='username'?'text':'tel'}" maxlength="50" autocomplete="off" autocapitalize="off" spellcheck="false" value="${esc(values[n-1])}" ${n===1?'required':''} placeholder="${n===2?'Opcional: agrega un segundo contacto':''}">
+        </label>
+      </section>`).join('')}
+      <p class="notice" style="text-align:left">Si configuras los dos destinatarios, al enviar un pedido se abrirán ambos chats de WhatsApp. Debes pulsar «Enviar» en cada chat.</p>
       <button class="admin-primary" type="submit" style="margin-top:17px">Guardar</button>
       <div id="settings-status" aria-live="polite"></div>
     </form></div>`;
-  // Guarda temporalmente lo escrito cuando se cambia de modo, sin alterar Firebase.
-  const select=adminContent.querySelector('[name="whatsappMode"]');
-  const field=adminContent.querySelector('[name="whatsappContact"]');
-  const label=adminContent.querySelector('#whatsapp-contact-label');
-  const drafts={username:settings.whatsappUsername?'@'+normalizeWhatsAppUsername(settings.whatsappUsername):'',number:String(settings.whatsapp||'')};
-  let currentMode=mode;
-  select.addEventListener('change',()=>{
-    drafts[currentMode]=field.value;
-    currentMode=select.value==='username'?'username':'number';
-    field.value=drafts[currentMode];
-    field.inputMode=currentMode==='username'?'text':'tel';
-    label.textContent=currentMode==='username'?'Usuario de WhatsApp':'Número de celular';
+  [1,2].forEach(n=>{
+    const select=adminContent.querySelector(`[name="whatsappMode${n}"]`);
+    const field=adminContent.querySelector(`[name="whatsappContact${n}"]`);
+    const label=adminContent.querySelector(`#whatsapp-contact-label-${n}`);
+    const drafts={
+      username:n===1?(settings.whatsappUsername?'@'+normalizeWhatsAppUsername(settings.whatsappUsername):''):(settings.whatsappUsername2?'@'+normalizeWhatsAppUsername(settings.whatsappUsername2):''),
+      number:n===1?String(settings.whatsapp||''):String(settings.whatsapp2||'')
+    };
+    let currentMode=modes[n-1];
+    select.addEventListener('change',()=>{
+      drafts[currentMode]=field.value;
+      currentMode=select.value==='username'?'username':'number';
+      field.value=drafts[currentMode];
+      field.inputMode=currentMode==='username'?'text':'tel';
+      label.textContent=currentMode==='username'?'Usuario de WhatsApp':'Número de celular';
+    });
   });
 }
 function clearPhotoPreviews(){editorPhotos.forEach(p=>{if(p.preview?.startsWith('blob:'))URL.revokeObjectURL(p.preview);});}
@@ -759,25 +782,33 @@ async function handleLogin(form){
 }
 async function saveSettings(form){
   const status=$('settings-status');
-  const mode=form.elements.whatsappMode.value==='username'?'username':'number';
-  const contact=form.elements.whatsappContact.value.trim();
-  let phone=String(settings.whatsapp||'').replace(/\D/g,'');
-  let username=normalizeWhatsAppUsername(settings.whatsappUsername);
-  if(mode==='number'){
-    phone=contact.replace(/\D/g,'');
-    if(!/^\d{8,15}$/.test(phone)){
-      status.innerHTML='<p class="admin-error">Ingresa un número válido con código de país.</p>';return;
+  const next={};
+  for(const n of [1,2]){
+    const mode=form.elements[`whatsappMode${n}`].value==='username'?'username':'number';
+    const contact=String(form.elements[`whatsappContact${n}`].value||'').trim();
+    let phone='',username='';
+    if(contact){
+      if(mode==='number'){
+        phone=contact.replace(/\D/g,'');
+        if(!/^\d{8,15}$/.test(phone)){
+          status.innerHTML=`<p class="admin-error">El número del destinatario ${n} no es válido. Incluye el código de país.</p>`;return;
+        }
+      }else{
+        username=normalizeWhatsAppUsername(contact);
+        if(!validWhatsAppUsername(username)){
+          status.innerHTML=`<p class="admin-error">El usuario del destinatario ${n} no es válido.</p>`;return;
+        }
+      }
+    }else if(n===1){
+      status.innerHTML='<p class="admin-error">Completa al menos el destinatario principal.</p>';return;
     }
-  }else{
-    username=normalizeWhatsAppUsername(contact);
-    if(!validWhatsAppUsername(username)){
-      status.innerHTML='<p class="admin-error">Ingresa un usuario válido de WhatsApp.</p>';return;
-    }
+    next[n===1?'whatsapp':'whatsapp2']=phone;
+    next[n===1?'whatsappUsername':'whatsappUsername2']=username;
+    next[n===1?'whatsappMode':'whatsappMode2']=mode;
   }
   try{
-    const next={whatsapp:phone,whatsappUsername:username,whatsappMode:mode};
     await sdk.setDoc(sdk.doc(db,'settings','storefront'),{...next,updatedAt:sdk.serverTimestamp()},{merge:true});
-    settings={...settings,...next};notify('WhatsApp guardado.');renderSettings();
+    settings={...settings,...next};notify('Contactos de WhatsApp guardados.');renderSettings();
   }catch(e){
     status.innerHTML='<p class="admin-error">No se pudo guardar. Intenta nuevamente.</p>';
     console.error('Error al guardar WhatsApp:',e);
@@ -1110,7 +1141,7 @@ async function initFirebase(){
       snap=>{products=snap.docs.map(d=>normalize({id:d.id,...d.data()})).sort((a,b)=>a.name.localeCompare(b.name,'es'));cart=cart.filter(i=>products.some(p=>p.id===i.id));saveCart();renderFeed();},
       err=>{console.error('Firestore productos:',err);notify('No se pudo cargar el catálogo. Revisa Firestore y sus reglas.');});
     unsubscribeLikes=firestore.onSnapshot(firestore.collection(db,'productLikes'), snap=>{likeCounts=new Map(snap.docs.map(d=>[d.id,Math.max(0,Number(d.data().count)||0)]));updateLikeButtons();},err=>console.warn('Contadores:',err));
-    unsubscribeSettings=firestore.onSnapshot(firestore.doc(db,'settings','storefront'),snap=>{const data=snap.exists()?snap.data():{};settings={whatsapp:String(data.whatsapp||''),whatsappUsername:String(data.whatsappUsername||''),whatsappMode:data.whatsappMode==='username'?'username':'number'};},
+    unsubscribeSettings=firestore.onSnapshot(firestore.doc(db,'settings','storefront'),snap=>{const data=snap.exists()?snap.data():{};settings={whatsapp:String(data.whatsapp||''),whatsappUsername:String(data.whatsappUsername||''),whatsappMode:data.whatsappMode==='username'?'username':'number',whatsapp2:String(data.whatsapp2||''),whatsappUsername2:String(data.whatsappUsername2||''),whatsappMode2:data.whatsappMode2==='username'?'username':'number'};},
       err=>console.error('Firestore WhatsApp:',err));
     authMod.onAuthStateChanged(auth,user=>{
       activeUser=user;if(unsubscribeAdmin){unsubscribeAdmin();unsubscribeAdmin=null;}
